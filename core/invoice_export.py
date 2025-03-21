@@ -362,8 +362,31 @@ class InvoiceExporter:
                     except:
                         pass
             
-            # 写入发票列表
+            # 写入发票列表（按开票日期排序，早的在前）
             invoice_list_df = pd.DataFrame(invoice_list_data)
+            
+            # 将字符串日期转换为datetime进行排序，然后重新转回来
+            invoice_list_df['排序日期'] = pd.to_datetime(invoice_list_df['开票日期'], errors='coerce')
+            invoice_list_df = invoice_list_df.sort_values(by='排序日期')
+            invoice_list_df = invoice_list_df.drop(columns=['排序日期'])
+            
+            # 计算合计行
+            total_row = {col: '' for col in invoice_list_df.columns}
+            total_row['发票代码'] = '合计'
+            
+            # 计算金额、税额和价税合计的总和
+            for col in ['金额', '税额', '价税合计']:
+                try:
+                    # 提取数字部分计算总和
+                    numeric_values = invoice_list_df[col].str.replace('¥', '').str.strip().astype(float)
+                    total_row[col] = f"¥{numeric_values.sum():.2f}"
+                except:
+                    total_row[col] = ''
+            
+            # 添加合计行
+            invoice_list_df = pd.concat([invoice_list_df, pd.DataFrame([total_row])], ignore_index=True)
+            
+            # 写入Excel
             invoice_list_df.to_excel(writer, sheet_name='发票列表', index=False)
             
             # 3. 商品明细表
@@ -388,6 +411,28 @@ class InvoiceExporter:
             
             if items_data:
                 items_df = pd.DataFrame(items_data)
+                
+                # 按开票日期排序商品明细
+                items_df['排序日期'] = pd.to_datetime(items_df['开票日期'], errors='coerce')
+                items_df = items_df.sort_values(by='排序日期')
+                items_df = items_df.drop(columns=['排序日期'])
+                
+                # 添加合计行
+                items_total = {col: '' for col in items_df.columns}
+                items_total['发票ID'] = 'SUM共计'
+                
+                # 计算商品明细表中的金额和税额总和
+                for col in ['金额', '税额']:
+                    try:
+                        numeric_values = items_df[col].str.replace('¥', '').str.strip().astype(float)
+                        items_total[col] = f"¥{numeric_values.sum():.2f}"
+                    except:
+                        items_total[col] = ''
+                
+                # 添加合计行到商品明细表
+                items_df = pd.concat([items_df, pd.DataFrame([items_total])], ignore_index=True)
+                
+                # 写入商品明细表
                 items_df.to_excel(writer, sheet_name='商品明细', index=False)
                 
             # 新增：每张发票的详细工作表
@@ -453,14 +498,14 @@ class InvoiceExporter:
                         items_data = []
                         for item in items:
                             items_data.append({
-                                '商品名称': item.get('Name', ''),
-                                '规格型号': item.get('Specification', ''),
-                                '单位': item.get('Unit', ''),
-                                '数量': item.get('Quantity', ''),
-                                '单价': item.get('Price', ''),
-                                '金额': item.get('Amount', ''),
-                                '税率': item.get('TaxRate', ''),
-                                '税额': item.get('Tax', '')
+                                '商品名称': item.get('项目名称', ''),
+                                '规格型号': item.get('规格型号', ''),
+                                '单位': item.get('单位', ''),
+                                '数量': item.get('数量', ''),
+                                '单价': item.get('单价', ''),
+                                '金额': item.get('金额', ''),
+                                '税率': item.get('税率', ''),
+                                '税额': item.get('税额', '')
                             })
                         if items_data:
                             items_df = pd.DataFrame(items_data)
