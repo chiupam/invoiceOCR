@@ -66,36 +66,23 @@ source .venv/bin/activate
 (.venv) pip3 install -r requirements.txt
 ```
 
-#### 4. 配置环境变量
-
-创建 `.env` 文件（可以复制 `.env.example` 并填写您自己的值）：
-
-```bash
-# 复制示例配置
-(.venv) cp .env.example .env
-
-# 编辑配置文件
-(.venv) nano .env  # 或使用其他编辑器
-```
-
-设置以下必要的环境变量：
-
-```
-FLASK_APP=run.py
-FLASK_ENV=development
-TENCENT_SECRET_ID=你的腾讯云SecretId
-TENCENT_SECRET_KEY=你的腾讯云SecretKey
-```
-
-**注意**：请勿将包含实际API密钥的`.env`文件提交到Git仓库！
-
-#### 5. 运行应用
+#### 4. 运行应用
 
 ```bash
 (.venv) python3 run.py
 ```
 
-应用将在 http://127.0.0.1:5001/ 运行。系统会自动检测并初始化数据库（如果是首次运行）。
+应用将在 http://127.0.0.1:5001/ 运行。首次运行时，系统会自动初始化数据库并引导您完成必要的设置。
+
+#### 5. 首次访问配置
+
+首次访问系统时，会自动跳转到设置页面，需要配置以下信息：
+
+1. 腾讯云OCR API密钥（SecretId和SecretKey）
+   - 可在[腾讯云控制台](https://console.cloud.tencent.com/cam/capi)获取
+   - 需要开通腾讯云OCR服务（增值税发票识别）
+
+配置完成后，即可开始使用系统的所有功能。
 
 #### 6. 退出虚拟环境（完成使用后）
 
@@ -137,7 +124,7 @@ docker-compose up -d
 ```
 
 ##### (4) 访问应用
-浏览器访问 http://localhost:5001 即可使用应用。系统会自动检测并初始化数据库（如果是首次运行）。
+浏览器访问 http://localhost:5001 即可使用应用。首次访问时，系统会引导您完成必要的设置。
 
 #### 3. 常用Docker命令
 

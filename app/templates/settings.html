@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}系统设置{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row">
+    <div class="col-md-8 offset-md-2">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">系统设置</h5>
+        </div>
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('settings') }}">
+            <div class="mb-4">
+              <h6 class="text-muted">腾讯云OCR API配置</h6>
+              <hr>
+              <div class="mb-3">
+                <label for="tencent_secret_id" class="form-label">SecretId <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="tencent_secret_id" name="tencent_secret_id" 
+                      value="{{ tencent_secret_id }}" required>
+                <div class="form-text">腾讯云API密钥SecretId，可在<a href="https://console.cloud.tencent.com/cam/capi" target="_blank">腾讯云控制台</a>获取</div>
+              </div>
+              <div class="mb-3">
+                <label for="tencent_secret_key" class="form-label">SecretKey <span class="text-danger">*</span></label>
+                <input type="password" class="form-control" id="tencent_secret_key" name="tencent_secret_key" 
+                      value="{{ tencent_secret_key }}" required>
+                <div class="form-text">腾讯云API密钥SecretKey</div>
+              </div>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+              <button type="submit" class="btn btn-primary">保存设置</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} 

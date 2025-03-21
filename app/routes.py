@@ -7,7 +7,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, send_file, session, abort
 from werkzeug.utils import secure_filename
 
-from .models import db, Invoice, InvoiceItem, Project
+from .models import db, Invoice, InvoiceItem, Project, Settings
 from .utils import save_uploaded_file, process_invoice_image, get_invoice_statistics, export_invoice, delete_invoice, export_project, update_invoice_from_json, update_all_invoices_from_json
 
 # 创建蓝图
@@ -21,9 +21,21 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# 添加检查系统是否设置完成的函数
+def check_system_setup():
+    """检查系统是否已设置（腾讯云API密钥）"""
+    tencent_secret_id = Settings.get_value('TENCENT_SECRET_ID')
+    tencent_secret_key = Settings.get_value('TENCENT_SECRET_KEY')
+    return bool(tencent_secret_id and tencent_secret_key)
+
 @main.route('/')
 def index():
-    """首页/发票列表页"""
+    """首页 - 发票列表"""
+    # 检查系统是否已设置
+    if not check_system_setup():
+        flash('请先完成系统设置', 'warning')
+        return redirect(url_for('settings'))
+    
     # 获取筛选参数
     project_id = request.args.get('project_id', type=int)
     
@@ -657,4 +669,33 @@ def cleanup_files():
             'deleted_count': deleted_count1 + deleted_count2
         })
         
-    return jsonify({'success': False, 'message': '请使用POST方法访问此接口'}) 
+    return jsonify({'success': False, 'message': '请使用POST方法访问此接口'})
+
+# 设置页面
+@main.route('/settings', methods=['GET', 'POST'])
+def settings():
+    """系统设置页面"""
+    if request.method == 'POST':
+        # 保存设置
+        tencent_secret_id = request.form.get('tencent_secret_id', '').strip()
+        tencent_secret_key = request.form.get('tencent_secret_key', '').strip()
+        
+        # 验证输入
+        if not tencent_secret_id or not tencent_secret_key:
+            flash('请填写所有必填字段', 'danger')
+            return redirect(url_for('settings'))
+        
+        # 保存设置
+        Settings.set_value('TENCENT_SECRET_ID', tencent_secret_id)
+        Settings.set_value('TENCENT_SECRET_KEY', tencent_secret_key)
+        
+        flash('设置已保存', 'success')
+        return redirect(url_for('index'))
+    
+    # 获取当前设置
+    tencent_secret_id = Settings.get_value('TENCENT_SECRET_ID', '')
+    tencent_secret_key = Settings.get_value('TENCENT_SECRET_KEY', '')
+    
+    return render_template('settings.html', 
+                           tencent_secret_id=tencent_secret_id,
+                           tencent_secret_key=tencent_secret_key) 

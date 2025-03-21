@@ -245,3 +245,28 @@ class InvoiceItem(db.Model):
             tax_rate=item_data.get('TaxRate', item_data.get('税率', '')),
             tax=item_data.get('Tax', item_data.get('税额', item_data.get('TaxAmount', '')))
         ) 
+
+class Settings(db.Model):
+    """系统设置表"""
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(50), unique=True, nullable=False)
+    value = db.Column(db.Text, nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    @classmethod
+    def get_value(cls, key, default=None):
+        """获取设置值"""
+        setting = cls.query.filter_by(key=key).first()
+        return setting.value if setting else default
+    
+    @classmethod
+    def set_value(cls, key, value):
+        """设置值"""
+        setting = cls.query.filter_by(key=key).first()
+        if setting:
+            setting.value = value
+        else:
+            setting = cls(key=key, value=value)
+            db.session.add(setting)
+        db.session.commit()
+        return setting 

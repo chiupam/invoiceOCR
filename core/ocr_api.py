@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import hashlib
 import hmac
@@ -7,10 +8,13 @@ import time
 import base64
 import os
 from datetime import datetime
+from tencentcloud.common import credential
 from tencentcloud.common.profile.client_profile import ClientProfile
 from tencentcloud.common.profile.http_profile import HttpProfile
+from tencentcloud.common.exception.tencent_cloud_sdk_exception import TencentCloudSDKException
 from tencentcloud.ocr.v20181119 import ocr_client, models
 from dotenv import load_dotenv
+from app.models import Settings
 
 # 加载环境变量
 load_dotenv()
@@ -26,29 +30,43 @@ def sign(key, msg):
     return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).digest()
 
 
-class OCRClient:
-    """OCR API客户端"""
+def get_api_credentials():
+    """从数据库获取API凭证"""
+    secret_id = Settings.get_value('TENCENT_SECRET_ID')
+    secret_key = Settings.get_value('TENCENT_SECRET_KEY')
     
-    def __init__(self, secret_id=None, secret_key=None):
-        """
-        初始化OCR客户端
+    # 如果数据库中没有，尝试从环境变量获取（兼容旧版本）
+    if not secret_id:
+        secret_id = os.environ.get('TENCENT_SECRET_ID')
+    if not secret_key:
+        secret_key = os.environ.get('TENCENT_SECRET_KEY')
+    
+    return secret_id, secret_key
+
+
+class OCRClient:
+    """腾讯云OCR API客户端"""
+    
+    def __init__(self):
+        # 获取API凭证
+        secret_id, secret_key = get_api_credentials()
         
-        参数:
-            secret_id: 腾讯云API SecretId（如果不提供则从环境变量获取）
-            secret_key: 腾讯云API SecretKey（如果不提供则从环境变量获取）
-        """
-        self.secret_id = secret_id or os.environ.get('TENCENT_SECRET_ID', '')
-        self.secret_key = secret_key or os.environ.get('TENCENT_SECRET_KEY', '')
+        if not secret_id or not secret_key:
+            raise ValueError('尚未配置腾讯云API密钥，请先在系统设置中配置')
         
-        # 验证密钥不为空
-        if not self.secret_id or not self.secret_key:
-            raise ValueError("Missing Tencent Cloud API credentials. Please set TENCENT_SECRET_ID and TENCENT_SECRET_KEY environment variables.")
+        # 实例化一个认证对象
+        self.cred = credential.Credential(secret_id, secret_key)
         
-        # API信息
-        self.service = "ocr"
-        self.host = "ocr.tencentcloudapi.com"
-        self.region = "ap-guangzhou"
-        self.version = "2018-11-19"
+        # 实例化一个http选项
+        self.httpProfile = HttpProfile()
+        self.httpProfile.endpoint = "ocr.tencentcloudapi.com"
+        
+        # 实例化一个client选项
+        self.clientProfile = ClientProfile()
+        self.clientProfile.httpProfile = self.httpProfile
+        
+        # 实例化OCR的client对象
+        self.client = ocr_client.OcrClient(self.cred, "ap-guangzhou", self.clientProfile)
         
     def recognize_vat_invoice(self, image_path=None, image_url=None, image_base64=None):
         """
@@ -108,7 +126,7 @@ class OCRClient:
         
         algorithm = "TC3-HMAC-SHA256"
         ct = "application/json; charset=utf-8"
-        canonical_headers = "content-type:%s\nhost:%s\nx-tc-action:%s\n" % (ct, self.host, action.lower())
+        canonical_headers = "content-type:%s\nhost:%s\nx-tc-action:%s\n" % (ct, self.httpProfile.endpoint, action.lower())
         signed_headers = "content-type;host;x-tc-action"
         hashed_request_payload = hashlib.sha256(payload.encode("utf-8")).hexdigest()
         canonical_request = (http_request_method + "\n" +
@@ -119,7 +137,7 @@ class OCRClient:
                              hashed_request_payload)
 
         # ************* 步骤 2：拼接待签名字符串 *************
-        credential_scope = date + "/" + self.service + "/" + "tc3_request"
+        credential_scope = date + "/" + "ocr" + "/" + "tc3_request"
         hashed_canonical_request = hashlib.sha256(canonical_request.encode("utf-8")).hexdigest()
         string_to_sign = (algorithm + "\n" +
                           str(timestamp) + "\n" +
@@ -127,14 +145,14 @@ class OCRClient:
                           hashed_canonical_request)
 
         # ************* 步骤 3：计算签名 *************
-        secret_date = sign(("TC3" + self.secret_key).encode("utf-8"), date)
-        secret_service = sign(secret_date, self.service)
+        secret_date = sign(("TC3" + secret_key).encode("utf-8"), date)
+        secret_service = sign(secret_date, "ocr")
         secret_signing = sign(secret_service, "tc3_request")
         signature = hmac.new(secret_signing, string_to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
 
         # ************* 步骤 4：拼接 Authorization *************
         authorization = (algorithm + " " +
-                         "Credential=" + self.secret_id + "/" + credential_scope + ", " +
+                         "Credential=" + secret_id + "/" + credential_scope + ", " +
                          "SignedHeaders=" + signed_headers + ", " +
                          "Signature=" + signature)
 
@@ -142,16 +160,14 @@ class OCRClient:
         headers = {
             "Authorization": authorization,
             "Content-Type": "application/json; charset=utf-8",
-            "Host": self.host,
+            "Host": self.httpProfile.endpoint,
             "X-TC-Action": action,
             "X-TC-Timestamp": str(timestamp),
-            "X-TC-Version": self.version
+            "X-TC-Version": "2018-11-19"
         }
-        if self.region:
-            headers["X-TC-Region"] = self.region
 
         try:
-            req = HTTPSConnection(self.host)
+            req = HTTPSConnection(self.httpProfile.endpoint)
             req.request("POST", "/", headers=headers, body=payload.encode("utf-8"))
             resp = req.getresponse()
             return resp.read().decode("utf-8")

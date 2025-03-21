@@ -13,8 +13,6 @@ services:
     environment:
       - FLASK_APP=run.py
       - FLASK_ENV=production
-      - TENCENT_SECRET_ID=${TENCENT_SECRET_ID}
-      - TENCENT_SECRET_KEY=${TENCENT_SECRET_KEY}
     networks:
       - invoice_ocr_network
 

@@ -6,7 +6,7 @@ import click
 import pathlib
 from flask.cli import with_appcontext
 from app import create_app, db
-from app.models import Invoice, InvoiceItem
+from app.models import Invoice, InvoiceItem, Settings
 from app.utils import cleanup_old_exported_files
 
 # 创建应用实例
@@ -27,13 +27,35 @@ def check_and_init_db():
         output_dir.mkdir(exist_ok=True)
         print("已创建data/output目录")
     
+    # 检查uploads目录是否存在
+    uploads_dir = pathlib.Path('app/static/uploads')
+    if not uploads_dir.exists():
+        uploads_dir.mkdir(parents=True, exist_ok=True)
+        print("已创建uploads目录")
+    
     # 检查数据库文件是否存在
     db_path = pathlib.Path('data/invoices.db')
-    if not db_path.exists():
-        print("数据库文件不存在，正在初始化数据库...")
-        with app.app_context():
+    db_exists = db_path.exists()
+    
+    with app.app_context():
+        if not db_exists:
+            print("数据库文件不存在，正在初始化数据库...")
             db.create_all()
             print("数据库初始化完成！")
+        
+        # 尝试从环境变量导入API密钥到数据库（兼容旧版本）
+        # 检查是否已经存在API设置
+        tencent_secret_id = Settings.get_value('TENCENT_SECRET_ID')
+        tencent_secret_key = Settings.get_value('TENCENT_SECRET_KEY')
+        
+        # 如果数据库中没有设置但环境变量中有，则导入
+        if not tencent_secret_id and os.environ.get('TENCENT_SECRET_ID'):
+            Settings.set_value('TENCENT_SECRET_ID', os.environ.get('TENCENT_SECRET_ID'))
+            print("已从环境变量导入腾讯云SecretId")
+        
+        if not tencent_secret_key and os.environ.get('TENCENT_SECRET_KEY'):
+            Settings.set_value('TENCENT_SECRET_KEY', os.environ.get('TENCENT_SECRET_KEY'))
+            print("已从环境变量导入腾讯云SecretKey")
 
 # 创建Flask shell上下文
 @app.shell_context_processor
