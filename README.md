@@ -89,21 +89,15 @@ TENCENT_SECRET_KEY=你的腾讯云SecretKey
 
 **注意**：请勿将包含实际API密钥的`.env`文件提交到Git仓库！
 
-#### 5. 初始化数据库
-
-```bash
-(.venv) python3 tools/db_init.py
-```
-
-#### 6. 运行应用
+#### 5. 运行应用
 
 ```bash
 (.venv) python3 run.py
 ```
 
-应用将在 http://127.0.0.1:5001/ 运行。
+应用将在 http://127.0.0.1:5001/ 运行。系统会自动检测并初始化数据库（如果是首次运行）。
 
-#### 7. 退出虚拟环境（完成使用后）
+#### 6. 退出虚拟环境（完成使用后）
 
 ```bash
 (.venv) deactivate
@@ -142,13 +136,8 @@ cp .env.example .env
 docker-compose up -d
 ```
 
-##### (4) 初始化数据库（首次部署时）
-```bash
-docker-compose exec invoice_ocr python3 tools/db_init.py
-```
-
-##### (5) 访问应用
-浏览器访问 http://localhost:5001 即可使用应用
+##### (4) 访问应用
+浏览器访问 http://localhost:5001 即可使用应用。系统会自动检测并初始化数据库（如果是首次运行）。
 
 #### 3. 常用Docker命令
 
