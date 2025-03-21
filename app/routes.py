@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, send_file, session, abort
 from werkzeug.utils import secure_filename
 from sqlalchemy import desc, func
+from decimal import Decimal
+import re
 
 from .models import db, Invoice, InvoiceItem, Project, Settings
 from .utils import save_uploaded_file, process_invoice_image, get_invoice_statistics, export_invoice, delete_invoice, export_project, update_invoice_from_json, update_all_invoices_from_json
@@ -32,42 +34,48 @@ def check_system_setup():
 @main.route('/')
 @main.route('/index')
 def index():
-    """首页"""
+    """发票首页"""
+    # 获取URL参数
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # 每页显示的发票数量
+    
     # 获取排序参数
-    sort_by = request.args.get('sort_by', 'created_at')
+    sort_by = request.args.get('sort_by', 'invoice_date')
     order = request.args.get('order', 'desc')
     
-    # 获取项目ID
+    # 获取项目ID参数
     project_id = request.args.get('project_id', None)
-    current_project = None
+    if project_id is not None:
+        try:
+            project_id = int(project_id)
+        except (ValueError, TypeError):
+            project_id = None
     
-    # 获取分页参数
-    page = request.args.get('page', 1, type=int)
-    per_page = 20  # 每页显示数量
+    # 获取搜索查询参数
+    search_query = request.args.get('search', '')
     
-    # 构建查询
+    # 初始化查询对象
     query = Invoice.query
     
     # 按项目过滤
-    if project_id:
-        # 将字符串转为整数
-        try:
-            project_id = int(project_id)
-            
-            # 特殊情况：0表示查询未分类的发票
-            if project_id == 0:
-                query = query.filter(Invoice.project_id == None)
-                # 保存当前项目ID（用于模板显示）
-                current_project_id = 0
-            else:
-                current_project = Project.query.get_or_404(project_id)
-                query = query.filter_by(project_id=project_id)
-                # 保存当前项目ID（用于模板显示）
-                current_project_id = project_id
-        except (ValueError, TypeError):
-            pass
+    current_project = None
+    if project_id is not None:
+        if project_id == 0:
+            # 特殊情况：显示未分类发票
+            query = query.filter(Invoice.project_id == None)
+            current_project_id = 0
+        else:
+            # 查询特定项目ID
+            query = query.filter_by(project_id=project_id)
+            current_project = Project.query.get(project_id)
+            current_project_id = project_id
     else:
+        # 不筛选项目
         current_project_id = None
+    
+    # 应用搜索过滤
+    if search_query:
+        query = query.filter(Invoice.invoice_number.like(f'%{search_query}%'))
     
     # 应用排序
     if sort_by == 'invoice_date':
@@ -76,32 +84,19 @@ def index():
         else:
             query = query.order_by(Invoice.invoice_date.desc())
     elif sort_by == 'amount':
-        # 以金额排序，这里简单实现，可能不太精确
-        if order == 'asc':
-            query = query.order_by(Invoice.amount_in_figures.asc())
-        else:
-            query = query.order_by(Invoice.amount_in_figures.desc())
-    elif sort_by == 'items_count':
-        # 执行查询获取所有发票
-        invoices = query.all()
-        
-        # 查询每个发票的项目数量
-        invoice_items_count = {}
-        for invoice in invoices:
-            items_count = InvoiceItem.query.filter_by(invoice_id=invoice.id).count()
-            invoice_items_count[invoice.id] = items_count
-        
-        # 根据项目数量排序
-        if order == 'asc':
-            invoices = sorted(invoices, key=lambda x: invoice_items_count.get(x.id, 0))
-        else:
-            invoices = sorted(invoices, key=lambda x: invoice_items_count.get(x.id, 0), reverse=True)
+        # 查询所有发票，再根据金额进行排序
+        all_invoices = query.all()
+        # 将金额从字符串转换为Decimal以用于排序
+        all_invoices.sort(
+            key=lambda inv: Decimal(re.sub(r'[^\d.]', '', inv.amount_in_figures)) if inv.amount_in_figures and re.sub(r'[^\d.]', '', inv.amount_in_figures) else Decimal('0'), 
+            reverse=(order == 'desc')
+        )
         
         # 应用分页 - 手动分页
-        total = len(invoices)
+        total = len(all_invoices)
         start = (page - 1) * per_page
         end = min(start + per_page, total)
-        pagination_items = invoices[start:end]
+        pagination_items = all_invoices[start:end]
         
         # 自定义分页对象
         class PaginationObj:
@@ -134,6 +129,58 @@ def index():
         
         # 设置已排序标志，防止执行后面的查询
         already_sorted = True
+    elif sort_by == 'items_count':
+        # 查询所有发票，加载关联的项目数据
+        all_invoices = query.all()
+        
+        # 根据每个发票的项目数量排序
+        if order == 'asc':
+            all_invoices.sort(key=lambda inv: len(inv.items))
+        else:
+            all_invoices.sort(key=lambda inv: len(inv.items), reverse=True)
+        
+        # 应用分页 - 手动分页
+        total = len(all_invoices)
+        start = (page - 1) * per_page
+        end = min(start + per_page, total)
+        pagination_items = all_invoices[start:end]
+        
+        # 自定义分页对象
+        class PaginationObj:
+            def __init__(self, items, page, per_page, total):
+                self.items = items
+                self.page = page
+                self.per_page = per_page
+                self.total = total
+                self.pages = (total + per_page - 1) // per_page  # 总页数
+                self.prev_num = page - 1 if page > 1 else None
+                self.next_num = page + 1 if page < self.pages else None
+            
+            def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
+                last = 0
+                for num in range(1, self.pages + 1):
+                    if num <= left_edge or \
+                       (num > self.page - left_current - 1 and \
+                        num < self.page + right_current) or \
+                       num > self.pages - right_edge:
+                        if last + 1 != num:
+                            yield None
+                        yield num
+                        last = num
+        
+        # 创建分页对象
+        pagination = PaginationObj(items=pagination_items, page=page, per_page=per_page, total=total)
+        
+        # 更新发票列表为分页后的结果
+        invoices = pagination_items
+        
+        # 设置已排序标志，防止执行后面的查询
+        already_sorted = True
+    elif sort_by == 'invoice_number':
+        if order == 'asc':
+            query = query.order_by(Invoice.invoice_number.asc())
+        else:
+            query = query.order_by(Invoice.invoice_number.desc())
     elif sort_by == 'created_at':
         if order == 'asc':
             query = query.order_by(Invoice.created_at.asc())
@@ -169,7 +216,8 @@ def index():
                           current_project_id=current_project_id,
                           current_project=current_project,
                           sort_by=sort_by,
-                          order=order)
+                          order=order,
+                          search_query=search_query)
 
 
 @main.route('/upload', methods=['GET', 'POST'])

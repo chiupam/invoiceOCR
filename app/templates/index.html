@@ -18,6 +18,28 @@
             {% endif %}
         </h1>
         <div class="d-flex">
+            <!-- 添加搜索框 -->
+            <form method="GET" action="{{ url_for('main.index') }}" class="d-none d-sm-inline-block form-inline mr-auto ml-md-3 my-2 my-md-0 mw-100 me-3">
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control bg-light border small" placeholder="搜索发票号码..." 
+                           value="{{ search_query }}" aria-label="搜索" aria-describedby="basic-addon2">
+                    {% if current_project_id %}
+                    <input type="hidden" name="project_id" value="{{ current_project_id }}">
+                    {% endif %}
+                    {% if sort_by %}
+                    <input type="hidden" name="sort_by" value="{{ sort_by }}">
+                    {% endif %}
+                    {% if order %}
+                    <input type="hidden" name="order" value="{{ order }}">
+                    {% endif %}
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search fa-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+            
             {% if current_project_id and current_project_id != 0 %}
             <a href="{{ url_for('main.project_export', project_id=current_project_id) }}" class="btn btn-primary me-2">
                 <i class="fas fa-file-export me-1"></i> 导出项目
@@ -97,13 +119,21 @@
                                 <tr>
                                     <th width="5%">图片</th>
                                     <th width="12%">类型</th>
-                                    <th width="12%">号码</th>
+                                    <th width="12%">
+                                        号码
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_number', order='asc', search=search_query) }}">
+                                            <i class="fas fa-sort-up{% if sort_by == 'invoice_number' and order == 'asc' %} text-primary{% endif %}"></i>
+                                        </a>
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_number', order='desc', search=search_query) }}">
+                                            <i class="fas fa-sort-down{% if sort_by == 'invoice_number' and order == 'desc' %} text-primary{% endif %}"></i>
+                                        </a>
+                                    </th>
                                     <th width="10%">
                                         日期
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_date', order='asc') }}">
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_date', order='asc', search=search_query) }}">
                                             <i class="fas fa-sort-up{% if sort_by == 'invoice_date' and order == 'asc' %} text-primary{% endif %}"></i>
                                         </a>
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_date', order='desc') }}">
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_date', order='desc', search=search_query) }}">
                                             <i class="fas fa-sort-down{% if sort_by == 'invoice_date' and order == 'desc' %} text-primary{% endif %}"></i>
                                         </a>
                                     </th>
@@ -111,19 +141,19 @@
                                     <th width="15%">购买方</th>
                                     <th width="15%">
                                         金额
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='amount', order='asc') }}">
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='amount', order='asc', search=search_query) }}">
                                             <i class="fas fa-sort-up{% if sort_by == 'amount' and order == 'asc' %} text-primary{% endif %}"></i>
                                         </a>
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='amount', order='desc') }}">
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='amount', order='desc', search=search_query) }}">
                                             <i class="fas fa-sort-down{% if sort_by == 'amount' and order == 'desc' %} text-primary{% endif %}"></i>
                                         </a>
                                     </th>
                                     <th width="8%">
                                         项目数
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='items_count', order='asc') }}">
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='items_count', order='asc', search=search_query) }}">
                                             <i class="fas fa-sort-up{% if sort_by == 'items_count' and order == 'asc' %} text-primary{% endif %}"></i>
                                         </a>
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='items_count', order='desc') }}">
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='items_count', order='desc', search=search_query) }}">
                                             <i class="fas fa-sort-down{% if sort_by == 'items_count' and order == 'desc' %} text-primary{% endif %}"></i>
                                         </a>
                                     </th>
@@ -235,7 +265,7 @@
                         <ul class="pagination justify-content-center">
                             <!-- 上一页按钮 -->
                             <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}">
-                                <a class="page-link" href="{{ url_for('main.index', page=pagination.prev_num, project_id=current_project_id, sort_by=sort_by, order=order) }}" aria-label="上一页">
+                                <a class="page-link" href="{{ url_for('main.index', page=pagination.prev_num, project_id=current_project_id, sort_by=sort_by, order=order, search=search_query) }}" aria-label="上一页">
                                     <span aria-hidden="true">&laquo;</span>
                                 </a>
                             </li>
@@ -244,7 +274,7 @@
                             {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
                                 {% if page_num %}
                                     <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                                        <a class="page-link" href="{{ url_for('main.index', page=page_num, project_id=current_project_id, sort_by=sort_by, order=order) }}">
+                                        <a class="page-link" href="{{ url_for('main.index', page=page_num, project_id=current_project_id, sort_by=sort_by, order=order, search=search_query) }}">
                                             {{ page_num }}
                                         </a>
                                     </li>
@@ -257,7 +287,7 @@
                             
                             <!-- 下一页按钮 -->
                             <li class="page-item {% if pagination.page == pagination.pages %}disabled{% endif %}">
-                                <a class="page-link" href="{{ url_for('main.index', page=pagination.next_num, project_id=current_project_id, sort_by=sort_by, order=order) }}" aria-label="下一页">
+                                <a class="page-link" href="{{ url_for('main.index', page=pagination.next_num, project_id=current_project_id, sort_by=sort_by, order=order, search=search_query) }}" aria-label="下一页">
                                     <span aria-hidden="true">&raquo;</span>
                                 </a>
                             </li>
