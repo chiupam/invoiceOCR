@@ -120,42 +120,66 @@
                                     <th width="5%">图片</th>
                                     <th width="12%">类型</th>
                                     <th width="12%">
-                                        号码
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_number', order='asc', search=search_query) }}">
-                                            <i class="fas fa-sort-up{% if sort_by == 'invoice_number' and order == 'asc' %} text-primary{% endif %}"></i>
-                                        </a>
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_number', order='desc', search=search_query) }}">
-                                            <i class="fas fa-sort-down{% if sort_by == 'invoice_number' and order == 'desc' %} text-primary{% endif %}"></i>
-                                        </a>
+                                        <div class="d-flex align-items-center">
+                                            <span>号码</span>
+                                            <div class="sort-icons ms-2">
+                                                <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_number', order='asc', search=search_query) }}" 
+                                                   class="sort-icon {% if sort_by == 'invoice_number' and order == 'asc' %}active{% endif %}">
+                                                    <i class="fas fa-sort-up"></i>
+                                                </a>
+                                                <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_number', order='desc', search=search_query) }}" 
+                                                   class="sort-icon {% if sort_by == 'invoice_number' and order == 'desc' %}active{% endif %}">
+                                                    <i class="fas fa-sort-down"></i>
+                                                </a>
+                                            </div>
+                                        </div>
                                     </th>
                                     <th width="10%">
-                                        日期
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_date', order='asc', search=search_query) }}">
-                                            <i class="fas fa-sort-up{% if sort_by == 'invoice_date' and order == 'asc' %} text-primary{% endif %}"></i>
-                                        </a>
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_date', order='desc', search=search_query) }}">
-                                            <i class="fas fa-sort-down{% if sort_by == 'invoice_date' and order == 'desc' %} text-primary{% endif %}"></i>
-                                        </a>
+                                        <div class="d-flex align-items-center">
+                                            <span>日期</span>
+                                            <div class="sort-icons ms-2">
+                                                <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_date', order='asc', search=search_query) }}" 
+                                                   class="sort-icon {% if sort_by == 'invoice_date' and order == 'asc' %}active{% endif %}">
+                                                    <i class="fas fa-sort-up"></i>
+                                                </a>
+                                                <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_date', order='desc', search=search_query) }}" 
+                                                   class="sort-icon {% if sort_by == 'invoice_date' and order == 'desc' %}active{% endif %}">
+                                                    <i class="fas fa-sort-down"></i>
+                                                </a>
+                                            </div>
+                                        </div>
                                     </th>
                                     <th width="15%">销售方</th>
                                     <th width="15%">购买方</th>
                                     <th width="15%">
-                                        金额
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='amount', order='asc', search=search_query) }}">
-                                            <i class="fas fa-sort-up{% if sort_by == 'amount' and order == 'asc' %} text-primary{% endif %}"></i>
-                                        </a>
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='amount', order='desc', search=search_query) }}">
-                                            <i class="fas fa-sort-down{% if sort_by == 'amount' and order == 'desc' %} text-primary{% endif %}"></i>
-                                        </a>
+                                        <div class="d-flex align-items-center">
+                                            <span>金额</span>
+                                            <div class="sort-icons ms-2">
+                                                <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='amount', order='asc', search=search_query) }}" 
+                                                   class="sort-icon {% if sort_by == 'amount' and order == 'asc' %}active{% endif %}">
+                                                    <i class="fas fa-sort-up"></i>
+                                                </a>
+                                                <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='amount', order='desc', search=search_query) }}" 
+                                                   class="sort-icon {% if sort_by == 'amount' and order == 'desc' %}active{% endif %}">
+                                                    <i class="fas fa-sort-down"></i>
+                                                </a>
+                                            </div>
+                                        </div>
                                     </th>
                                     <th width="8%">
-                                        项目数
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='items_count', order='asc', search=search_query) }}">
-                                            <i class="fas fa-sort-up{% if sort_by == 'items_count' and order == 'asc' %} text-primary{% endif %}"></i>
-                                        </a>
-                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='items_count', order='desc', search=search_query) }}">
-                                            <i class="fas fa-sort-down{% if sort_by == 'items_count' and order == 'desc' %} text-primary{% endif %}"></i>
-                                        </a>
+                                        <div class="d-flex align-items-center">
+                                            <span>项目数</span>
+                                            <div class="sort-icons ms-2">
+                                                <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='items_count', order='asc', search=search_query) }}" 
+                                                   class="sort-icon {% if sort_by == 'items_count' and order == 'asc' %}active{% endif %}">
+                                                    <i class="fas fa-sort-up"></i>
+                                                </a>
+                                                <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='items_count', order='desc', search=search_query) }}" 
+                                                   class="sort-icon {% if sort_by == 'items_count' and order == 'desc' %}active{% endif %}">
+                                                    <i class="fas fa-sort-down"></i>
+                                                </a>
+                                            </div>
+                                        </div>
                                     </th>
                                     <th width="8%">操作</th>
                                 </tr>
@@ -186,7 +210,7 @@
                                     <td>{{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '未知' }}</td>
                                     <td>{{ invoice.seller_name }}</td>
                                     <td>{{ invoice.buyer_name }}</td>
-                                    <td>{{ invoice.total_amount }}</td>
+                                    <td>{{ invoice.amount_in_figures }}</td>
                                     <td>{{ invoice.items|length }}</td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
