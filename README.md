@@ -101,7 +101,7 @@ TENCENT_SECRET_KEY=你的腾讯云SecretKey
 (.venv) python3 run.py
 ```
 
-应用将在 http://127.0.0.1:5000/ 运行。
+应用将在 http://127.0.0.1:5001/ 运行。
 
 #### 7. 退出虚拟环境（完成使用后）
 
@@ -287,7 +287,7 @@ docker-compose exec invoice_ocr python3 tools/db_init.py
 ```
 
 5. 访问应用
-浏览器访问 http://localhost:5000 即可使用应用
+浏览器访问 http://localhost:5001 即可使用应用
 
 ### 其他Docker命令
 

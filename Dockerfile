@@ -16,7 +16,7 @@ ENV FLASK_APP=run.py
 ENV PYTHONUNBUFFERED=1
 
 # 暴露端口
-EXPOSE 5000
+EXPOSE 5001
 
 # 启动应用
 CMD ["python3", "run.py"] 
