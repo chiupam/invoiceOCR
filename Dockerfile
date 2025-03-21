@@ -2,11 +2,9 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY . .
 
 RUN pip3 install --no-cache-dir -r requirements.txt
-
-COPY . .
 
 # 创建必要的目录
 RUN mkdir -p data/output app/static/uploads
