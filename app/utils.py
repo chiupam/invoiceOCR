@@ -67,6 +67,9 @@ def process_invoice_image(image_path, project_id=None):
     ocr_api = OCRClient()
     
     try:
+        # 记录开始处理的文件
+        current_app.logger.info(f"开始处理图片: {image_path}")
+        
         # 调用OCR API识别发票
         response_json = ocr_api.recognize_vat_invoice(image_path=image_path)
         
@@ -109,6 +112,25 @@ def process_invoice_image(image_path, project_id=None):
         
         from app.models import Invoice, InvoiceItem, db
         
+        # 检查是否成功识别出发票代码和号码
+        if not invoice_code or not invoice_number:
+            current_app.logger.warning(f"识别失败: 图片 {image_path} 未能识别出发票代码或号码")
+            # 保存失败图片的副本用于后续分析
+            basename = os.path.basename(image_path)
+            if not basename.startswith('failed_'):
+                failed_copy = os.path.join(os.path.dirname(image_path), f"failed_{basename}")
+                try:
+                    import shutil
+                    shutil.copy2(image_path, failed_copy)
+                    current_app.logger.info(f"已保存识别失败图片副本: {failed_copy}")
+                except Exception as e:
+                    current_app.logger.error(f"保存识别失败图片副本时出错: {str(e)}")
+            
+            return {
+                'success': False,
+                'message': '未能识别出发票代码或号码，请检查图片清晰度或图片内容是否为有效发票'
+            }
+        
         if invoice_code and invoice_number:
             existing_invoice = Invoice.query.filter_by(
                 invoice_code=invoice_code,
@@ -116,6 +138,13 @@ def process_invoice_image(image_path, project_id=None):
             ).first()
             
             if existing_invoice:
+                # 如果发票已存在，也应该删除临时文件
+                try:
+                    os.remove(image_path)
+                    current_app.logger.info(f"发票已存在，删除临时文件: {image_path}")
+                except Exception as e:
+                    current_app.logger.warning(f"发票已存在，但无法删除临时文件: {image_path}, 错误: {str(e)}")
+                
                 return {
                     'success': True,
                     'message': f'发票已存在 (ID: {existing_invoice.id})',
@@ -124,10 +153,21 @@ def process_invoice_image(image_path, project_id=None):
             
             # 使用发票代码和号码创建新的文件名
             filename = secure_filename(os.path.basename(image_path))
+            
+            # 确保文件名不带temp_前缀
+            if filename.startswith('temp_'):
+                filename = filename[5:]  # 移除temp_前缀
+                
             new_filename = f"{invoice_code}{invoice_number}{os.path.splitext(filename)[1]}"
+            current_app.logger.info(f"生成新文件名: {new_filename}")
         else:
-            # 如果没有识别出代码和号码，使用原文件名
-            new_filename = os.path.basename(image_path)
+            # 如果没有识别出代码和号码，使用原文件名但移除temp_前缀
+            basename = os.path.basename(image_path)
+            if basename.startswith('temp_'):
+                new_filename = basename[5:] # 移除temp_前缀
+            else:
+                new_filename = basename
+            current_app.logger.warning(f"使用普通文件名: {new_filename}")
         
         # 最终文件路径
         upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
@@ -136,12 +176,14 @@ def process_invoice_image(image_path, project_id=None):
         # 移动文件
         import shutil
         shutil.copy2(image_path, final_file_path)
+        current_app.logger.info(f"复制文件: {image_path} -> {final_file_path}")
         
         # 删除原始临时文件
         try:
             os.remove(image_path)
-        except:
-            current_app.logger.warning(f"无法删除临时文件: {image_path}")
+            current_app.logger.info(f"删除临时文件: {image_path}")
+        except Exception as e:
+            current_app.logger.warning(f"无法删除临时文件: {image_path}, 错误: {str(e)}")
         
         # 创建新发票记录
         invoice = Invoice(
@@ -167,6 +209,7 @@ def process_invoice_image(image_path, project_id=None):
         
         db.session.add(invoice)
         db.session.commit()
+        current_app.logger.info(f"保存发票记录: ID={invoice.id}, 代码={invoice_code}, 号码={invoice_number}")
         
         # 创建发票项目关联
         if 'json_data' in invoice_data and invoice_data['json_data']:
@@ -180,6 +223,7 @@ def process_invoice_image(image_path, project_id=None):
             # 保存完整JSON数据
             invoice.json_data = json.dumps(formatted_data, ensure_ascii=False)
             db.session.commit()
+            current_app.logger.info(f"为发票ID={invoice.id}保存了{len(items_data)}个商品项目")
         
         return {
             'success': True,
@@ -189,6 +233,17 @@ def process_invoice_image(image_path, project_id=None):
         
     except Exception as e:
         current_app.logger.error(f"处理发票图片时出错: {str(e)}")
+        # 保存失败图片的副本用于后续分析
+        try:
+            basename = os.path.basename(image_path)
+            if not basename.startswith('failed_'):
+                failed_copy = os.path.join(os.path.dirname(image_path), f"failed_{basename}")
+                import shutil
+                shutil.copy2(image_path, failed_copy)
+                current_app.logger.info(f"已保存识别失败图片副本: {failed_copy}")
+        except Exception as copy_error:
+            current_app.logger.error(f"保存识别失败图片副本时出错: {str(copy_error)}")
+        
         return {
             'success': False,
             'message': f'处理发票时出错: {str(e)}'
@@ -305,7 +360,7 @@ def export_invoice(invoice_id, format, auto_delete=False):
         导出文件的路径
     """
     # 查询发票对象
-    invoice = Invoice.query.get_or_404(invoice_id)
+    invoice = Invoice.query.get_or_404(invoice_id)    
     
     # 获取完整的发票数据
     invoice_data = json.loads(invoice.json_data)
@@ -399,9 +454,12 @@ def delete_invoice(invoice_id):
         
         # 删除发票图片文件
         if invoice.image_path:
-            image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], invoice.image_path)
+            image_path = os.path.join(current_app.root_path, 'static', 'uploads', invoice.image_path)
             if os.path.exists(image_path):
                 os.remove(image_path)
+                current_app.logger.info(f"已删除发票图片：{image_path}")
+            else:
+                current_app.logger.warning(f"找不到要删除的图片：{image_path}")
         
         # 删除发票记录
         db.session.delete(invoice)

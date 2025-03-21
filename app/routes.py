@@ -3,9 +3,10 @@
 
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, send_file, session, abort
 from werkzeug.utils import secure_filename
+from sqlalchemy import desc, func
 
 from .models import db, Invoice, InvoiceItem, Project, Settings
 from .utils import save_uploaded_file, process_invoice_image, get_invoice_statistics, export_invoice, delete_invoice, export_project, update_invoice_from_json, update_all_invoices_from_json
@@ -29,32 +30,44 @@ def check_system_setup():
     return bool(tencent_secret_id and tencent_secret_key)
 
 @main.route('/')
+@main.route('/index')
 def index():
-    """首页 - 发票列表"""
-    # 检查系统是否已设置
-    if not check_system_setup():
-        flash('请先完成系统设置', 'warning')
-        return redirect(url_for('main.settings'))
-    
-    # 获取筛选参数
-    project_id = request.args.get('project_id', type=int)
-    
+    """首页"""
     # 获取排序参数
-    sort_by = request.args.get('sort_by', 'invoice_date')
+    sort_by = request.args.get('sort_by', 'created_at')
     order = request.args.get('order', 'desc')
     
-    # 查询发票列表
+    # 获取项目ID
+    project_id = request.args.get('project_id', None)
+    current_project = None
+    
+    # 获取分页参数
+    page = request.args.get('page', 1, type=int)
+    per_page = 20  # 每页显示数量
+    
+    # 构建查询
     query = Invoice.query
     
-    # 应用项目筛选
-    current_project = None
-    if project_id is not None:
-        if project_id == 0:  # 0表示未分类
-            query = query.filter(Invoice.project_id.is_(None))
-        else:
-            query = query.filter_by(project_id=project_id)
-            # 获取当前项目信息
-            current_project = Project.query.get_or_404(project_id)
+    # 按项目过滤
+    if project_id:
+        # 将字符串转为整数
+        try:
+            project_id = int(project_id)
+            
+            # 特殊情况：0表示查询未分类的发票
+            if project_id == 0:
+                query = query.filter(Invoice.project_id == None)
+                # 保存当前项目ID（用于模板显示）
+                current_project_id = 0
+            else:
+                current_project = Project.query.get_or_404(project_id)
+                query = query.filter_by(project_id=project_id)
+                # 保存当前项目ID（用于模板显示）
+                current_project_id = project_id
+        except (ValueError, TypeError):
+            pass
+    else:
+        current_project_id = None
     
     # 应用排序
     if sort_by == 'invoice_date':
@@ -68,11 +81,6 @@ def index():
             query = query.order_by(Invoice.amount_in_figures.asc())
         else:
             query = query.order_by(Invoice.amount_in_figures.desc())
-    elif sort_by == 'created_at':
-        if order == 'asc':
-            query = query.order_by(Invoice.created_at.asc())
-        else:
-            query = query.order_by(Invoice.created_at.desc())
     elif sort_by == 'items_count':
         # 执行查询获取所有发票
         invoices = query.all()
@@ -89,53 +97,79 @@ def index():
         else:
             invoices = sorted(invoices, key=lambda x: invoice_items_count.get(x.id, 0), reverse=True)
         
+        # 应用分页 - 手动分页
+        total = len(invoices)
+        start = (page - 1) * per_page
+        end = min(start + per_page, total)
+        pagination_items = invoices[start:end]
+        
+        # 自定义分页对象
+        class PaginationObj:
+            def __init__(self, items, page, per_page, total):
+                self.items = items
+                self.page = page
+                self.per_page = per_page
+                self.total = total
+                self.pages = (total + per_page - 1) // per_page  # 总页数
+                self.prev_num = page - 1 if page > 1 else None
+                self.next_num = page + 1 if page < self.pages else None
+            
+            def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
+                last = 0
+                for num in range(1, self.pages + 1):
+                    if num <= left_edge or \
+                       (num > self.page - left_current - 1 and \
+                        num < self.page + right_current) or \
+                       num > self.pages - right_edge:
+                        if last + 1 != num:
+                            yield None
+                        yield num
+                        last = num
+        
+        # 创建分页对象
+        pagination = PaginationObj(items=pagination_items, page=page, per_page=per_page, total=total)
+        
+        # 更新发票列表为分页后的结果
+        invoices = pagination_items
+        
         # 设置已排序标志，防止执行后面的查询
         already_sorted = True
+    elif sort_by == 'created_at':
+        if order == 'asc':
+            query = query.order_by(Invoice.created_at.asc())
+        else:
+            query = query.order_by(Invoice.created_at.desc())
     
     # 执行查询（如果没有按项目数量排序）
     if not locals().get('already_sorted', False):
-        invoices = query.all()
+        # 带分页的查询
+        pagination = query.paginate(page=page, per_page=per_page)
+        invoices = pagination.items
     
-    # 查询项目列表
+    # 获取项目列表（用于侧边栏）
     projects = Project.query.order_by(Project.name).all()
     
-    # 查询每个发票的项目数量
-    invoice_items_count = {}
-    for invoice in invoices:
-        items_count = InvoiceItem.query.filter_by(invoice_id=invoice.id).count()
-        invoice_items_count[invoice.id] = items_count
-    
-    # 获取统计信息 - 传入筛选后的发票列表而不是全部发票
-    stats = get_invoice_statistics(invoices)
-    
-    # 确保stats中有正确的结构
-    if 'monthly_data' not in stats:
-        stats['monthly_data'] = {'months': [], 'counts': []}
-    
-    # 确保有发票类型分布数据
-    if 'type_data' not in stats:
-        # 计算发票类型分布
-        type_data = {}
-        for invoice in invoices:
-            if invoice.invoice_type:
-                if invoice.invoice_type not in type_data:
-                    type_data[invoice.invoice_type] = 0
-                type_data[invoice.invoice_type] += 1
+    # 获取统计数据
+    # 根据当前过滤条件获取统计
+    if project_id:
+        if project_id == 0:
+            filtered_invoices = Invoice.query.filter(Invoice.project_id == None).all()
+        else:
+            filtered_invoices = Invoice.query.filter_by(project_id=project_id).all()
+    else:
+        filtered_invoices = Invoice.query.all()
         
-        stats['type_data'] = {
-            'labels': list(type_data.keys()),
-            'counts': list(type_data.values())
-        }
+    stats = get_invoice_statistics(filtered_invoices)
     
     return render_template('index.html', 
-                           invoices=invoices,
-                           projects=projects,
-                           current_project_id=project_id,
-                           current_project=current_project,
-                           invoice_items_count=invoice_items_count,
-                           stats=stats,
-                           sort_by=sort_by,
-                           order=order)
+                          invoices=invoices,
+                          pagination=pagination,
+                          projects=projects, 
+                          stats=stats,
+                          current_project_id=current_project_id,
+                          current_project=current_project,
+                          sort_by=sort_by,
+                          order=order)
 
 
 @main.route('/upload', methods=['GET', 'POST'])
@@ -165,13 +199,20 @@ def upload():
     if request.method == 'POST':
         # 检查是否有文件上传
         if 'invoice_file' not in request.files:
+            print("POST请求没有找到invoice_file字段", request.files)
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json':
+                return jsonify({'success': False, 'message': '没有选择文件'})
             flash('没有选择文件')
             return redirect(request.url)
         
         file = request.files['invoice_file']
+        print(f"收到文件上传: {file.filename}")
         
         # 检查文件名是否为空
         if file.filename == '':
+            print("文件名为空")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json':
+                return jsonify({'success': False, 'message': '没有选择文件'})
             flash('没有选择文件')
             return redirect(request.url)
         
@@ -198,15 +239,42 @@ def upload():
             result = process_invoice_image(temp_file_path, project_id=project_id)
             
             if not result.get('success'):
-                os.remove(temp_file_path)  # 删除临时文件
+                # 不再删除临时文件，因为process_invoice_image已经处理过或保存为failed_副本
+                
+                # 检查是否为XHR请求（AJAX）
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json':
+                    return jsonify({
+                        'success': False,
+                        'message': f'发票识别失败: {result.get("message", "未知错误")}'
+                    })
+                
                 flash(f'发票识别失败: {result.get("message", "未知错误")}')
                 return redirect(request.url)
+            
+            # 检查是否为XHR请求（AJAX）
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json':
+                response_data = {
+                    'success': True,
+                    'message': '发票上传和识别成功',
+                    'invoice_id': result.get('invoice_id')
+                }
+                print(f"返回JSON响应: {response_data}")
+                return jsonify(response_data)
                 
             # 重定向到发票详情页面
             flash('发票上传和识别成功')
             return redirect(url_for('main.invoice_detail', invoice_id=result.get('invoice_id')))
         else:
-            flash('不支持的文件类型')
+            error_message = '不支持的文件类型'
+            
+            # 检查是否为XHR请求（AJAX）
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json':
+                return jsonify({
+                    'success': False,
+                    'message': error_message
+                })
+            
+            flash(error_message)
             return redirect(request.url)
     
     return render_template('upload.html', 
@@ -312,12 +380,28 @@ def invoice_delete(invoice_id):
                               projects=projects,
                               current_project_id=current_project_id)
     
+    # 保存图片路径，以便后续删除
+    image_path = invoice.image_path
+    
     # 先删除关联的商品项目
     InvoiceItem.query.filter_by(invoice_id=invoice_id).delete()
     
     # 删除发票
     db.session.delete(invoice)
     db.session.commit()
+    
+    # 删除对应的图片文件
+    if image_path:
+        try:
+            # 构建完整的文件路径
+            full_path = os.path.join(current_app.root_path, 'static', 'uploads', image_path)
+            if os.path.exists(full_path):
+                os.remove(full_path)
+                current_app.logger.info(f"已删除发票图片：{full_path}")
+            else:
+                current_app.logger.warning(f"找不到要删除的图片：{full_path}")
+        except Exception as e:
+            current_app.logger.error(f"删除发票图片出错：{str(e)}")
     
     flash('发票已删除')
     return redirect(url_for('main.index'))
