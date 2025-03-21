@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - 发票OCR管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-folder me-2"></i> {{ project.name }}
+        </h1>
+        <div class="btn-group">
+            <a href="{{ url_for('main.upload', project_id=project.id) }}" class="btn btn-success">
+                <i class="fas fa-upload me-1"></i> 上传发票
+            </a>
+            <a href="{{ url_for('main.project_export', project_id=project.id) }}" class="btn btn-primary">
+                <i class="fas fa-file-export me-1"></i> 导出项目
+            </a>
+            <a href="{{ url_for('main.project_edit', project_id=project.id) }}" class="btn btn-info">
+                <i class="fas fa-edit me-1"></i> 编辑项目
+            </a>
+        </div>
+    </div>
+
+    <!-- 项目信息卡片 -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">项目信息</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>项目名称：</strong> {{ project.name }}</p>
+                    <p><strong>创建时间：</strong> {{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>发票数量：</strong> {{ invoices|length }} 张</p>
+                    <p><strong>最后更新：</strong> {{ project.updated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-12">
+                    <p><strong>项目描述：</strong></p>
+                    <p class="text-muted">{{ project.description or '暂无描述' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 发票列表 -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">项目发票列表</h6>
+        </div>
+        <div class="card-body">
+            {% if invoices %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="10%">发票号码</th>
+                                <th width="15%">发票类型</th>
+                                <th width="15%">开票日期</th>
+                                <th width="15%">金额</th>
+                                <th width="20%">卖方</th>
+                                <th width="15%">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invoice in invoices %}
+                                <tr>
+                                    <td>{{ invoice.invoice_number }}</td>
+                                    <td>{{ invoice.invoice_type }}</td>
+                                    <td>{{ invoice.invoice_date }}</td>
+                                    <td>¥ {{ "%.2f"|format(invoice.total_amount|float) if invoice.total_amount else "0.00" }}</td>
+                                    <td>{{ invoice.seller_name }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('main.invoice_detail', invoice_id=invoice.id) }}" class="btn btn-info" title="查看详情">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('main.invoice_edit', invoice_id=invoice.id) }}" class="btn btn-primary" title="编辑发票">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{{ url_for('main.invoice_export', invoice_id=invoice.id, format='excel') }}" class="btn btn-success" title="导出Excel">
+                                                <i class="fas fa-file-excel"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-danger delete-invoice" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#deleteInvoiceModal" 
+                                                    data-id="{{ invoice.id }}"
+                                                    data-invoice-number="{{ invoice.invoice_number }}"
+                                                    title="删除发票">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4">
+                    <div class="mb-3">
+                        <i class="fas fa-file-invoice text-gray-300" style="font-size: 4rem;"></i>
+                    </div>
+                    <p class="text-muted mb-3">该项目下暂无发票</p>
+                    <a href="{{ url_for('main.upload', project_id=project.id) }}" class="btn btn-primary">
+                        <i class="fas fa-upload me-1"></i> 上传发票
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 删除发票确认模态框 -->
+<div class="modal fade" id="deleteInvoiceModal" tabindex="-1" aria-labelledby="deleteInvoiceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteInvoiceModalLabel">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>您确定要删除该发票吗？此操作不可撤销。</p>
+                <p>发票号码: <span id="invoiceNumberToDelete"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form id="deleteInvoiceForm" method="POST" action="">
+                    <button type="submit" class="btn btn-danger">确认删除</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 处理删除发票模态框
+        const deleteModal = document.getElementById('deleteInvoiceModal');
+        if (deleteModal) {
+            deleteModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const id = button.getAttribute('data-id');
+                const invoiceNumber = button.getAttribute('data-invoice-number');
+                
+                // 更新发票号码
+                const span = document.getElementById('invoiceNumberToDelete');
+                span.textContent = invoiceNumber;
+                
+                // 设置表单的action
+                const form = document.getElementById('deleteInvoiceForm');
+                form.action = `/invoices/${id}/delete`;
+            });
+        }
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% block title %}编辑发票 - 发票OCR管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">编辑发票</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="invoice_type" class="form-label">发票类型</label>
+                                    <input type="text" class="form-control" id="invoice_type" name="invoice_type" value="{{ invoice.invoice_type }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="project_id" class="form-label">所属项目</label>
+                                    <select class="form-select" id="project_id" name="project_id">
+                                        <option value="">-- 未分类 --</option>
+                                        {% for project in projects %}
+                                            <option value="{{ project.id }}" {% if invoice.project_id == project.id %}selected{% endif %}>
+                                                {{ project.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="invoice_code" class="form-label">发票代码</label>
+                                    <input type="text" class="form-control" id="invoice_code" name="invoice_code" value="{{ invoice.invoice_code }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="invoice_number" class="form-label">发票号码</label>
+                                    <input type="text" class="form-control" id="invoice_number" name="invoice_number" value="{{ invoice.invoice_number }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="invoice_date" class="form-label">开票日期</label>
+                                    <input type="date" class="form-control" id="invoice_date" name="invoice_date" value="{{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">销售方</label>
+                                    <input type="text" class="form-control" name="seller_name" value="{{ invoice.seller_name }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">销售方税号</label>
+                                    <input type="text" class="form-control" name="seller_tax_id" value="{{ invoice.seller_tax_id }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">购买方</label>
+                                    <input type="text" class="form-control" name="buyer_name" value="{{ invoice.buyer_name }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">购买方税号</label>
+                                    <input type="text" class="form-control" name="buyer_tax_id" value="{{ invoice.buyer_tax_id }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">金额</label>
+                                    <input type="text" class="form-control" name="total_amount" value="{{ invoice.total_amount }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">税额</label>
+                                    <input type="text" class="form-control" name="total_tax" value="{{ invoice.total_tax }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">价税合计</label>
+                                    <input type="text" class="form-control" name="amount_in_figures" value="{{ invoice.amount_in_figures }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-12">
+                                <h5>发票明细项</h5>
+                                <div class="table-responsive mt-3">
+                                    <table class="table table-bordered" id="itemsTable">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>名称</th>
+                                                <th>规格型号</th>
+                                                <th>单位</th>
+                                                <th>数量</th>
+                                                <th>单价</th>
+                                                <th>金额</th>
+                                                <th>税率</th>
+                                                <th>税额</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for item in invoice.items %}
+                                            <tr>
+                                                <td>
+                                                    <input type="text" class="form-control" name="items[{{ loop.index0 }}][name]" value="{{ item.name }}">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control" name="items[{{ loop.index0 }}][specification]" value="{{ item.specification }}">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control" name="items[{{ loop.index0 }}][unit]" value="{{ item.unit }}">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control" name="items[{{ loop.index0 }}][quantity]" value="{{ item.quantity }}">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control" name="items[{{ loop.index0 }}][price]" value="{{ item.price }}">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control" name="items[{{ loop.index0 }}][amount]" value="{{ item.amount }}">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control" name="items[{{ loop.index0 }}][tax_rate]" value="{{ item.tax_rate }}">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control" name="items[{{ loop.index0 }}][tax]" value="{{ item.tax }}">
+                                                </td>
+                                                <td>
+                                                    <button type="button" class="btn btn-danger btn-sm remove-item">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                    <button type="button" class="btn btn-success btn-sm mt-2" id="addItemBtn">
+                                        <i class="fas fa-plus me-1"></i> 添加明细项
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 d-flex justify-content-between">
+                            <a href="{{ url_for('main.invoice_detail', invoice_id=invoice.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> 返回详情
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> 保存修改
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 行项目模板 -->
+<template id="itemRowTemplate">
+    <tr>
+        <td>
+            <input type="text" class="form-control" name="items[INDEX][name]">
+        </td>
+        <td>
+            <input type="text" class="form-control" name="items[INDEX][specification]">
+        </td>
+        <td>
+            <input type="text" class="form-control" name="items[INDEX][unit]">
+        </td>
+        <td>
+            <input type="text" class="form-control" name="items[INDEX][quantity]">
+        </td>
+        <td>
+            <input type="text" class="form-control" name="items[INDEX][price]">
+        </td>
+        <td>
+            <input type="text" class="form-control" name="items[INDEX][amount]">
+        </td>
+        <td>
+            <input type="text" class="form-control" name="items[INDEX][tax_rate]">
+        </td>
+        <td>
+            <input type="text" class="form-control" name="items[INDEX][tax]">
+        </td>
+        <td>
+            <button type="button" class="btn btn-danger btn-sm remove-item">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/edit_invoice.js') }}"></script>
+{% endblock %} 

@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}确认删除发票 - 发票OCR管理系统{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>确认删除
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <h4 class="alert-heading">警告！</h4>
+                        <p>您即将删除以下发票。此操作无法撤销，所有发票数据和关联的项目将被永久删除。</p>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            发票详情
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>发票类型：</strong> {{ invoice.invoice_type }}</p>
+                                    <p><strong>发票代码：</strong> {{ invoice.invoice_code }}</p>
+                                    <p><strong>发票号码：</strong> {{ invoice.invoice_number }}</p>
+                                    <p><strong>发票日期：</strong> {{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '未知' }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>销售方：</strong> {{ invoice.seller_name }}</p>
+                                    <p><strong>购买方：</strong> {{ invoice.buyer_name }}</p>
+                                    <p><strong>金额：</strong> {{ invoice.total_amount }}</p>
+                                    <p><strong>创建日期：</strong> {{ invoice.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form action="{{ url_for('main.invoice_delete', invoice_id=invoice.id) }}" method="POST" class="mb-0">
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('main.invoice_detail', invoice_id=invoice.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> 返回发票详情
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-1"></i> 确认删除
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

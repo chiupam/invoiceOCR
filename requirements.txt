@@ -1,0 +1,33 @@
+# Web框架和扩展
+Flask
+Flask-SQLAlchemy
+Flask-Bootstrap
+Flask-Moment
+Werkzeug
+Jinja2
+Flask-WTF
+Flask-Migrate
+Flask-Login
+Flask-APScheduler
+
+# 数据库
+# 注意：Flask-SQLAlchemy会自动安装兼容的SQLAlchemy版本
+# SQLAlchemy
+
+# 数据处理
+pandas
+openpyxl
+xlsxwriter
+
+# HTTP请求
+requests
+
+# 图像处理
+Pillow
+
+# OCR服务
+tencentcloud-sdk-python
+
+# 其他工具
+python-dotenv
+pytz 

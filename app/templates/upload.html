@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}上传发票 - 发票OCR管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">上传发票</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 offset-md-3">
+                            <div class="upload-container">
+                                <form method="POST" enctype="multipart/form-data" class="upload-form">
+                                    <!-- 选择项目 -->
+                                    <div class="form-group">
+                                        <label for="project_id">项目分类</label>
+                                        <select class="form-control" id="project_id" name="project_id">
+                                            <option value="">未分类</option>
+                                            {% for project in projects %}
+                                            <option value="{{ project.id }}" {% if default_project_id and default_project_id|string == project.id|string %}selected{% endif %}>{{ project.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-4 text-center">
+                                        <div class="drop-zone" id="dropZone">
+                                            <div class="icon-container">
+                                                <i class="fas fa-cloud-upload-alt fa-4x text-primary"></i>
+                                            </div>
+                                            <p class="mt-3">拖拽发票图片到此处，或点击选择文件</p>
+                                            <p class="text-muted small">支持 JPG, PNG, GIF 格式</p>
+                                        </div>
+                                        <input type="file" name="invoice_file" id="fileInput" class="d-none" accept="image/*">
+                                    </div>
+                                    
+                                    <div class="mb-3 preview-container d-none" id="previewContainer">
+                                        <h6>预览:</h6>
+                                        <div class="text-center">
+                                            <img id="imagePreview" class="img-fluid img-thumbnail" style="max-height: 300px;">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" class="btn btn-primary btn-lg" id="uploadButton" disabled>
+                                            <i class="fas fa-upload me-2"></i>上传并识别
+                                        </button>
+                                        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
+                                            <i class="fas fa-arrow-left me-2"></i>返回发票列表
+                                        </a>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-10 offset-md-1">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h5 class="card-title">上传说明</h5>
+                                    <ul class="mb-0">
+                                        <li>系统支持上传JPG、PNG、GIF格式的发票图片</li>
+                                        <li>请确保图片清晰，发票内容完整可见</li>
+                                        <li>上传后系统会自动识别发票内容并保存到数据库</li>
+                                        <li>上传过程可能需要几秒钟时间，请耐心等待</li>
+                                        <li>如果识别结果不准确，可以在后续页面手动编辑</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .drop-zone {
+        padding: 40px;
+        border: 2px dashed #ccc;
+        border-radius: 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .drop-zone:hover, .drop-zone.dragover {
+        border-color: #007bff;
+        background-color: rgba(0, 123, 255, 0.05);
+    }
+    
+    .icon-container {
+        margin-bottom: 15px;
+    }
+    
+    .preview-container {
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %} 

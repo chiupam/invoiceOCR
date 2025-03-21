@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+
+{% block title %}项目管理 - 发票OCR管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">项目管理</h1>
+        <a href="{{ url_for('main.project_create') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> 创建新项目
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- 未分类发票卡片 -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-secondary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">未分类发票</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ unclassified_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-question-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+                <a href="{{ url_for('main.index', project_id=0) }}" class="card-footer text-secondary text-decoration-none">
+                    查看明细 <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- 所有项目卡片 -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">所有项目</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ projects|length }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-folder fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+                <a href="{{ url_for('main.index') }}" class="card-footer text-primary text-decoration-none">
+                    查看所有发票 <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 项目列表 -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">项目列表</h6>
+        </div>
+        <div class="card-body">
+            {% if projects %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>项目名称</th>
+                                <th>描述</th>
+                                <th width="15%">发票数量</th>
+                                <th width="15%">创建时间</th>
+                                <th width="15%">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for project in projects %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="text-primary text-decoration-none">
+                                            <i class="fas fa-folder me-1"></i> {{ project.name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ project.description or '-' }}</td>
+                                    <td>
+                                        <span class="badge bg-info rounded-pill">{{ project_stats[project.id].invoice_count }}</span>
+                                    </td>
+                                    <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="btn btn-info" title="查看项目详情">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('main.index', project_id=project.id) }}" class="btn btn-secondary" title="查看发票列表">
+                                                <i class="fas fa-list"></i>
+                                            </a>
+                                            <a href="{{ url_for('main.upload', project_id=project.id) }}" class="btn btn-success" title="上传发票">
+                                                <i class="fas fa-upload"></i>
+                                            </a>
+                                            <a href="{{ url_for('main.project_export', project_id=project.id) }}" class="btn btn-primary" title="导出项目">
+                                                <i class="fas fa-file-export"></i>
+                                            </a>
+                                            <a href="{{ url_for('main.project_edit', project_id=project.id) }}" class="btn btn-warning" title="编辑">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteProjectModal" 
+                                                data-id="{{ project.id }}" data-name="{{ project.name }}" 
+                                                data-count="{{ project_stats[project.id].invoice_count }}" title="删除">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted mb-3">暂无项目</p>
+                    <a href="{{ url_for('main.project_create') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> 创建第一个项目
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 删除项目确认对话框 -->
+<div class="modal fade" id="deleteProjectModal" tabindex="-1" aria-labelledby="deleteProjectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteProjectModalLabel">确认删除项目</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>您确定要删除项目吗？此操作无法撤销。</p>
+                <div id="projectInfo"></div>
+                
+                <div class="alert alert-warning mt-3">
+                    <h6>请选择如何处理项目中的发票：</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="handleInvoices" id="unclassifyInvoices" value="unclassify" checked>
+                        <label class="form-check-label" for="unclassifyInvoices">
+                            将发票设为"未分类"（保留发票数据）
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="handleInvoices" id="deleteInvoices" value="delete">
+                        <label class="form-check-label" for="deleteInvoices">
+                            同时删除项目中的所有发票（谨慎选择）
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form id="deleteProjectForm" method="POST" action="">
+                    <input type="hidden" name="handle_invoices" id="handleInvoicesInput" value="unclassify">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i> 确认删除
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 处理删除项目模态框
+        const deleteModal = document.getElementById('deleteProjectModal');
+        if (deleteModal) {
+            deleteModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const id = button.getAttribute('data-id');
+                const name = button.getAttribute('data-name');
+                const count = button.getAttribute('data-count');
+                
+                // 更新项目信息
+                const projectInfo = deleteModal.querySelector('#projectInfo');
+                projectInfo.innerHTML = `
+                    <div class="card mb-2">
+                        <div class="card-body py-2">
+                            <p class="mb-1"><strong>项目名称：</strong> ${name}</p>
+                            <p class="mb-0"><strong>包含发票：</strong> ${count} 张</p>
+                        </div>
+                    </div>
+                `;
+                
+                // 设置表单的action
+                const form = deleteModal.querySelector('#deleteProjectForm');
+                form.action = `/projects/${id}/delete`;
+                
+                // 处理单选按钮变化
+                const radioButtons = deleteModal.querySelectorAll('input[name="handleInvoices"]');
+                const hiddenInput = document.getElementById('handleInvoicesInput');
+                
+                radioButtons.forEach(radio => {
+                    radio.addEventListener('change', function() {
+                        hiddenInput.value = this.value;
+                    });
+                });
+            });
+        }
+    });
+</script>
+{% endblock %} 

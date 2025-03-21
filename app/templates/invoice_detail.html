@@ -1,0 +1,380 @@
+{% extends 'base.html' %}
+
+{% block title %}发票详情 - 发票OCR管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">发票详情</h5>
+                    <div>
+                        <a href="{{ url_for('main.upload') }}" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-cloud-upload-alt"></i> 继续识别
+                        </a>
+                        <a href="{{ url_for('main.invoice_edit', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-edit"></i> 编辑发票
+                        </a>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-download"></i> 导出
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('main.invoice_export', invoice_id=invoice.id, format='csv') }}">CSV</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('main.invoice_export', invoice_id=invoice.id, format='excel') }}">Excel</a></li>
+                            </ul>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="fas fa-trash"></i> 删除
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-5">
+                            <div class="text-center mb-4">
+                                <img src="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" 
+                                     class="img-fluid img-thumbnail invoice-image cursor-pointer" 
+                                     alt="发票图片" 
+                                     data-bs-toggle="modal" 
+                                     data-bs-target="#imagePreviewModal">
+                            </div>
+                        </div>
+                        <div class="col-md-7">
+                            <div class="invoice-details">
+                                <h4>发票信息</h4>
+                                <table class="table table-striped">
+                                    <tbody>
+                                        <tr>
+                                            <th style="width: 30%">发票类型</th>
+                                            <td>{{ invoice.invoice_type or '未知类型' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>发票代码</th>
+                                            <td>{{ invoice.invoice_code }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>发票号码</th>
+                                            <td>{{ invoice.invoice_number }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>开票日期</th>
+                                            <td>{{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>所属项目</th>
+                                            <td>
+                                                {% if invoice.project %}
+                                                    <span class="badge bg-primary">{{ invoice.project.name }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">未分类</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>发票金额</th>
+                                            <td>{{ invoice.total_amount }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>税额</th>
+                                            <td>{{ invoice.total_tax }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>销售方</th>
+                                            <td>{{ invoice.seller_name }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>销售方税号</th>
+                                            <td>{{ invoice.seller_tax_id }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>购买方</th>
+                                            <td>{{ invoice.buyer_name }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>购买方税号</th>
+                                            <td>{{ invoice.buyer_tax_id }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>创建时间</th>
+                                            <td>{{ invoice.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>更新时间</th>
+                                            <td>{{ invoice.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                
+                                <div class="mt-4">
+                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="collapse" data-bs-target="#jsonData">
+                                        <i class="fas fa-code me-1"></i> 显示JSON数据
+                                    </button>
+                                    <a href="{{ url_for('main.update_invoice_from_json', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-warning">
+                                        <i class="fas fa-sync me-1"></i> 从JSON更新
+                                    </a>
+                                </div>
+                                <div class="collapse mt-3" id="jsonData">
+                                    <div class="card card-body">
+                                        <h6>原始JSON数据</h6>
+                                        <pre class="json-data">{{ invoice.json_data|tojson(indent=2) }}</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <h4>发票明细项</h4>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>项目名称</th>
+                                            <th>规格型号</th>
+                                            <th>单位</th>
+                                            <th>数量</th>
+                                            <th>单价</th>
+                                            <th>金额</th>
+                                            <th>税率</th>
+                                            <th>税额</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in invoice.items %}
+                                        <tr>
+                                            <td>{{ loop.index }}</td>
+                                            <td>{{ item.name }}</td>
+                                            <td>{{ item.specification or '-' }}</td>
+                                            <td>{{ item.unit or '-' }}</td>
+                                            <td>{{ item.quantity or '-' }}</td>
+                                            <td>{{ item.price or '-' }}</td>
+                                            <td>{{ item.amount }}</td>
+                                            <td>{{ item.tax_rate }}</td>
+                                            <td>{{ item.tax }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            {% if json_data and json_data.get('商品信息') %}
+                            <div class="mt-4">
+                                <h5>原始JSON中的商品信息</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>项目名称</th>
+                                                <th>规格型号</th>
+                                                <th>单位</th>
+                                                <th>数量</th>
+                                                <th>单价</th>
+                                                <th>金额</th>
+                                                <th>税率</th>
+                                                <th>税额</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for item in json_data.get('商品信息', []) %}
+                                            <tr>
+                                                <td>{{ loop.index }}</td>
+                                                <td>{{ item.get('项目名称', '-') }}</td>
+                                                <td>{{ item.get('规格型号', '-') }}</td>
+                                                <td>{{ item.get('单位', '-') }}</td>
+                                                <td>{{ item.get('数量', '-') }}</td>
+                                                <td>{{ item.get('单价', '-') }}</td>
+                                                <td>{{ item.get('金额', '-') }}</td>
+                                                <td>{{ item.get('税率', '-') }}</td>
+                                                <td>{{ item.get('税额', '-') }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-end">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> 返回列表
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认对话框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>您确定要删除该发票吗？此操作无法撤销。</p>
+                <p><strong>发票信息: </strong>{{ invoice.invoice_type or '未知类型' }} - {{ invoice.combined_id }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <a href="{{ url_for('main.invoice_delete', invoice_id=invoice.id) }}" class="btn btn-danger">
+                    <i class="fas fa-trash me-1"></i> 确认删除
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 图片预览模态框 -->
+<div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-labelledby="imagePreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imagePreviewModalLabel">发票图片预览</h5>
+                <div class="zoom-controls ms-3">
+                    <button class="btn btn-sm btn-outline-secondary zoom-in">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary zoom-out">
+                        <i class="fas fa-search-minus"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary zoom-reset">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="loading-spinner d-none">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <p class="mt-2">图片加载中...</p>
+                </div>
+                <div class="image-container">
+                    <img src="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" 
+                         class="img-fluid preview-image" 
+                         alt="发票大图"
+                         id="previewImage">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <a href="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" class="btn btn-primary" target="_blank">在新窗口打开</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    
+    .invoice-image {
+        max-height: 600px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .invoice-details {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 5px;
+        height: 100%;
+    }
+    
+    .invoice-details h4 {
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .image-container {
+        overflow: auto;
+        max-height: 80vh;
+    }
+    
+    .preview-image {
+        transition: transform 0.3s ease;
+    }
+    
+    .loading-spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    
+    .zoom-controls {
+        display: flex;
+        gap: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 图片加载状态处理
+    const previewImage = document.getElementById('previewImage');
+    const loadingSpinner = document.querySelector('.loading-spinner');
+    
+    if (previewImage && loadingSpinner) {
+        // 显示加载中
+        loadingSpinner.classList.remove('d-none');
+        
+        previewImage.onload = function() {
+            // 图片加载完成，隐藏加载中
+            loadingSpinner.classList.add('d-none');
+        };
+        
+        previewImage.onerror = function() {
+            // 图片加载失败
+            loadingSpinner.classList.add('d-none');
+            previewImage.src = "{{ url_for('static', filename='img/image-error.png') }}";
+        };
+    }
+    
+    // 图片缩放功能
+    const zoomIn = document.querySelector('.zoom-in');
+    const zoomOut = document.querySelector('.zoom-out');
+    const zoomReset = document.querySelector('.zoom-reset');
+    
+    let scale = 1;
+    const maxScale = 3;
+    const minScale = 0.5;
+    const scaleStep = 0.2;
+    
+    if (zoomIn && zoomOut && zoomReset && previewImage) {
+        zoomIn.addEventListener('click', function() {
+            if (scale < maxScale) {
+                scale += scaleStep;
+                previewImage.style.transform = `scale(${scale})`;
+            }
+        });
+        
+        zoomOut.addEventListener('click', function() {
+            if (scale > minScale) {
+                scale -= scaleStep;
+                previewImage.style.transform = `scale(${scale})`;
+            }
+        });
+        
+        zoomReset.addEventListener('click', function() {
+            scale = 1;
+            previewImage.style.transform = 'scale(1)';
+        });
+    }
+});
+</script>
+{% endblock %} 

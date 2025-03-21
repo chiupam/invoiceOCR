@@ -1,0 +1,96 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.pydevproject
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Flask
+instance/
+.webassets-cache
+flask_session/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+logs/
+log/
+
+# Environment variables
+.env
+.flaskenv
+!.env.example
+
+# Uploaded files
+app/static/uploads/*
+!app/static/uploads/.gitkeep
+
+# Generated files
+data/output/*
+!data/output/.gitkeep
+*.out
+*.csv
+*.xlsx
+*.json
+!requirements*.json
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+.directory
+*~
+
+# Backup files
+*.bak
+*.backup
+*.~*
+
+# Temporary files
+*.tmp
+temp/
+tmp/ 

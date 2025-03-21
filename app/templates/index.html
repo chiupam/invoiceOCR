@@ -1,0 +1,406 @@
+{% extends 'base.html' %}
+
+{% block title %}首页 - 发票OCR管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 顶部操作按钮 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            {% if current_project_id %}
+                {% if current_project_id == 0 %}
+                    未分类发票
+                {% else %}
+                    项目: {{ current_project.name }}
+                {% endif %}
+            {% else %}
+                所有发票
+            {% endif %}
+        </h1>
+        <div class="d-flex">
+            {% if current_project_id and current_project_id != 0 %}
+            <a href="{{ url_for('main.project_export', project_id=current_project_id) }}" class="btn btn-primary me-2">
+                <i class="fas fa-file-export me-1"></i> 导出项目
+            </a>
+            <a href="{{ url_for('main.project_detail', project_id=current_project_id) }}" class="btn btn-info me-2">
+                <i class="fas fa-folder me-1"></i> 项目详情
+            </a>
+            {% endif %}
+            <button id="updateAllInvoicesBtn" class="btn btn-warning me-2">
+                <i class="fas fa-sync me-1"></i> 更新所有发票
+            </button>
+            <button id="cleanupFilesBtn" class="btn btn-secondary me-2">
+                <i class="fas fa-trash me-1"></i> 清理导出文件
+            </button>
+            <div class="dropdown mr-2">
+                <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-plus"></i> 新建
+                </button>
+                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                    <a class="dropdown-item" href="{{ url_for('main.upload', project_id=current_project_id) if current_project_id else url_for('main.upload') }}">
+                        <i class="fas fa-upload mr-2"></i>上传发票
+                    </a>
+                    <a class="dropdown-item" href="{{ url_for('main.project_create') }}">
+                        <i class="fas fa-folder-plus mr-2"></i>新建项目
+                    </a>
+                </div>
+            </div>
+            <div class="dropdown no-arrow">
+                <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                </a>
+                <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="dropdownMenuLink">
+                    <div class="dropdown-header">发票操作:</div>
+                    {% if current_project_id %}
+                        <a class="dropdown-item" href="{{ url_for('main.upload', project_id=current_project_id) }}">上传新发票</a>
+                    {% else %}
+                        <a class="dropdown-item" href="{{ url_for('main.upload') }}">上传新发票</a>
+                    {% endif %}
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{{ url_for('main.index') }}">查看所有发票</a>
+                    <a class="dropdown-item" href="{{ url_for('main.index', project_id=0) }}">查看未分类发票</a>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-header">按项目筛选:</div>
+                    {% for project in projects %}
+                        <a class="dropdown-item" href="{{ url_for('main.index', project_id=project.id) }}">{{ project.name }}</a>
+                    {% endfor %}
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{{ url_for('main.project_list') }}">管理项目</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 发票列表 -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        {% if current_project_id %}
+                            {% for project in projects %}
+                                {% if project.id == current_project_id %}
+                                    {{ project.name }} - 发票列表
+                                {% endif %}
+                            {% endfor %}
+                        {% elif current_project_id == 0 %}
+                            未分类 - 发票列表
+                        {% else %}
+                            所有发票
+                        {% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="5%">图片</th>
+                                    <th width="12%">类型</th>
+                                    <th width="12%">号码</th>
+                                    <th width="10%">日期</th>
+                                    <th width="15%">销售方</th>
+                                    <th width="15%">购买方</th>
+                                    <th width="15%">金额</th>
+                                    <th width="8%">项目数</th>
+                                    <th width="8%">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in invoices %}
+                                <tr data-toggle="collapse" data-target="#items-{{ invoice.id }}" class="accordion-toggle invoice-row" role="button" aria-expanded="false">
+                                    <td>
+                                        {% if invoice.image_path %}
+                                        <img src="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" class="invoice-thumbnail" alt="发票图片">
+                                        {% else %}
+                                        <div class="no-image">无图片</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ invoice.invoice_type or '未知' }}
+                                        {% if invoice.project %}
+                                            <div class="mt-1">
+                                                <span class="badge bg-primary">{{ invoice.project.name }}</span>
+                                            </div>
+                                        {% else %}
+                                            <div class="mt-1">
+                                                <span class="badge bg-secondary">未分类</span>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ invoice.invoice_number or '未知' }}</td>
+                                    <td>{{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '未知' }}</td>
+                                    <td>{{ invoice.seller_name }}</td>
+                                    <td>{{ invoice.buyer_name }}</td>
+                                    <td>{{ invoice.total_amount }}</td>
+                                    <td>{{ invoice.items|length }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('main.invoice_detail', invoice_id=invoice.id) }}" class="btn btn-info" title="查看详情">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('main.invoice_edit', invoice_id=invoice.id) }}" class="btn btn-primary" title="编辑">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal" 
+                                                data-id="{{ invoice.id }}" data-type="{{ invoice.invoice_type }}" data-number="{{ invoice.invoice_number }}" title="删除">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            <button class="btn btn-secondary toggle-items" title="显示/隐藏项目">
+                                                <i class="fas fa-list"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="10" class="p-0">
+                                        <div id="items-{{ invoice.id }}" class="collapse">
+                                            <div class="card card-body m-2">
+                                                <h6 class="card-subtitle mb-2 text-muted">发票项目列表</h6>
+                                                {% if invoice.items %}
+                                                <table class="table table-sm table-bordered">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th>名称</th>
+                                                            <th>规格</th>
+                                                            <th>单位</th>
+                                                            <th>数量</th>
+                                                            <th>单价</th>
+                                                            <th>金额</th>
+                                                            <th>税率</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for item in invoice.items %}
+                                                        <tr>
+                                                            <td>{{ item.name }}</td>
+                                                            <td>{{ item.specification or '-' }}</td>
+                                                            <td>{{ item.unit or '-' }}</td>
+                                                            <td>{{ item.quantity or '-' }}</td>
+                                                            <td>{{ item.price or '-' }}</td>
+                                                            <td>{{ item.amount }}</td>
+                                                            <td>{{ item.tax_rate }}</td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                                {% else %}
+                                                <p class="text-muted">无项目数据</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="10" class="text-center py-4">
+                                        <p class="text-muted mb-3">暂无发票记录</p>
+                                        <a href="{{ url_for('main.upload') }}" class="btn btn-primary">
+                                            <i class="fas fa-upload me-2"></i>上传第一张发票
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row">
+        <!-- 总发票数 -->
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">总发票数</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.invoice_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-file-invoice fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 总金额 -->
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">总金额</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">¥{{ stats.total_amount }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 本月发票数 -->
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">{{ stats.current_month.month }} 发票数</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.current_month.count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图表 -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">月度发票统计</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyChart" height="300"></canvas>
+                    <script id="chartData" type="application/json">
+                        {{ stats.monthly_data|tojson }}
+                    </script>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">发票类型分布</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="typeChart" height="300"></canvas>
+                    <script id="typeData" type="application/json">
+                        {% if stats.type_data %}
+                        {{ stats.type_data|tojson }}
+                        {% else %}
+                        {"labels":[],"counts":[]}
+                        {% endif %}
+                    </script>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认对话框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>您确定要删除该发票吗？此操作无法撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form id="deleteForm" method="POST" action="">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i> 确认删除
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/index.js') }}"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 处理更新所有发票按钮
+        const updateAllBtn = document.getElementById('updateAllInvoicesBtn');
+        if (updateAllBtn) {
+            updateAllBtn.addEventListener('click', function() {
+                if (confirm('确定要从JSON数据更新所有发票吗？此操作可能需要一些时间。')) {
+                    // 显示加载中
+                    updateAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> 更新中...';
+                    updateAllBtn.disabled = true;
+                    
+                    // 发起API请求
+                    fetch('/api/update-all-invoices', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            // 刷新页面
+                            window.location.reload();
+                        } else {
+                            alert('更新失败: ' + data.message);
+                            updateAllBtn.innerHTML = '<i class="fas fa-sync me-1"></i> 更新所有发票';
+                            updateAllBtn.disabled = false;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('更新失败，请查看控制台了解详情');
+                        updateAllBtn.innerHTML = '<i class="fas fa-sync me-1"></i> 更新所有发票';
+                        updateAllBtn.disabled = false;
+                    });
+                }
+            });
+        }
+        
+        // 处理清理导出文件按钮
+        const cleanupBtn = document.getElementById('cleanupFilesBtn');
+        if (cleanupBtn) {
+            cleanupBtn.addEventListener('click', function() {
+                if (confirm('确定要清理已导出的文件吗？此操作不可撤销。')) {
+                    // 显示加载中
+                    cleanupBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> 清理中...';
+                    cleanupBtn.disabled = true;
+                    
+                    // 发起API请求
+                    fetch('/api/cleanup-exported-files', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                        } else {
+                            alert('清理失败: ' + data.message);
+                        }
+                        cleanupBtn.innerHTML = '<i class="fas fa-trash me-1"></i> 清理导出文件';
+                        cleanupBtn.disabled = false;
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('清理失败，请查看控制台了解详情');
+                        cleanupBtn.innerHTML = '<i class="fas fa-trash me-1"></i> 清理导出文件';
+                        cleanupBtn.disabled = false;
+                    });
+                }
+            });
+        }
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,252 @@
+/* 全局样式 */
+:root {
+    --primary-color: #4e73df;
+    --secondary-color: #858796;
+    --success-color: #1cc88a;
+    --info-color: #36b9cc;
+    --warning-color: #f6c23e;
+    --danger-color: #e74a3b;
+    --light-color: #f8f9fc;
+    --dark-color: #5a5c69;
+}
+
+body {
+    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f8f9fc;
+}
+
+/* 侧边栏样式 */
+.sidebar {
+    width: 220px;
+    background-color: #4e73df;
+    background-image: linear-gradient(180deg, #4e73df 10%, #224abe 100%);
+    min-height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+    transition: all 0.3s;
+}
+
+.sidebar .sidebar-brand {
+    height: 4.375rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 1rem;
+    color: #fff;
+    font-weight: 800;
+    font-size: 1.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05rem;
+}
+
+.sidebar .sidebar-heading {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    padding: 1rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.sidebar .nav-item {
+    position: relative;
+}
+
+.sidebar .nav-item .nav-link {
+    padding: 0.75rem 1rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+
+.sidebar .nav-item .nav-link i {
+    margin-right: 0.5rem;
+    font-size: 1rem;
+    width: 1.5rem;
+    text-align: center;
+}
+
+.sidebar .nav-item .nav-link:hover,
+.sidebar .nav-item .nav-link.active {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 内容区域样式 */
+.content {
+    margin-left: 220px;
+    padding: 1.5rem;
+    transition: all 0.3s;
+}
+
+/* 导航栏样式 */
+.navbar {
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    background-color: #fff;
+    padding: 0.75rem 1rem;
+    border: none;
+}
+
+/* 卡片样式 */
+.card {
+    border: none;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    background-color: #f8f9fc;
+    border-bottom: 1px solid #e3e6f0;
+    padding: 0.75rem 1.25rem;
+}
+
+/* 边框左侧色条 */
+.border-left-primary {
+    border-left: 0.25rem solid var(--primary-color) !important;
+}
+
+.border-left-success {
+    border-left: 0.25rem solid var(--success-color) !important;
+}
+
+.border-left-info {
+    border-left: 0.25rem solid var(--info-color) !important;
+}
+
+.border-left-warning {
+    border-left: 0.25rem solid var(--warning-color) !important;
+}
+
+.border-left-danger {
+    border-left: 0.25rem solid var(--danger-color) !important;
+}
+
+/* 发票详情页样式 */
+.invoice-image {
+    max-height: 600px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.invoice-details {
+    background-color: #f8f9fc;
+    padding: 20px;
+    border-radius: 5px;
+}
+
+.invoice-details h4 {
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e3e6f0;
+}
+
+/* 上传页面样式 */
+.drop-zone {
+    padding: 40px;
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.drop-zone:hover, .drop-zone.dragover {
+    border-color: #4e73df;
+    background-color: rgba(78, 115, 223, 0.05);
+}
+
+/* 错误页面样式 */
+.error-page {
+    padding: 60px 0;
+}
+
+.error-page h1 {
+    font-size: 120px;
+    margin-bottom: 20px;
+    text-shadow: 3px 3px 0 rgba(0,0,0,0.1);
+}
+
+/* 发票列表样式 */
+.invoice-row {
+    cursor: pointer;
+}
+
+.invoice-row:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.toggle-items {
+    transition: transform 0.2s;
+}
+
+.toggle-items:hover {
+    transform: scale(1.1);
+}
+
+.collapse .card-body {
+    padding: 1rem;
+    background-color: #f8f9fa;
+}
+
+.badge.bg-info {
+    font-size: 0.85rem;
+    padding: 0.35em 0.65em;
+}
+
+/* 响应式样式 */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+    
+    .sidebar.show {
+        transform: translateX(0);
+    }
+    
+    .content {
+        margin-left: 0;
+    }
+    
+    .content-open .sidebar {
+        transform: translateX(0);
+    }
+    
+    .content-open .content {
+        margin-left: 220px;
+    }
+}
+
+/* 添加发票缩略图样式 */
+.invoice-thumbnail {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+.no-image {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    font-size: 10px;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+/* 导航高亮样式 */
+.nav-link.active {
+    background-color: rgba(0, 123, 255, 0.1);
+    color: #007bff !important;
+    font-weight: bold;
+    border-left: 3px solid #007bff;
+}
+
+.nav-link.active i {
+    color: #007bff;
+} 

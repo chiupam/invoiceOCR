@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+
+{% block title %}编辑发票 - 发票OCR管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">编辑发票信息</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="invoiceForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="invoice_type" class="form-label">发票类型</label>
+                                    <input type="text" class="form-control" id="invoice_type" name="invoice_type" value="{{ invoice.invoice_type }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="invoice_code" class="form-label">发票代码</label>
+                                    <input type="text" class="form-control" id="invoice_code" name="invoice_code" value="{{ invoice.invoice_code }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="invoice_number" class="form-label">发票号码</label>
+                                    <input type="text" class="form-control" id="invoice_number" name="invoice_number" value="{{ invoice.invoice_number }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="invoice_date" class="form-label">开票日期</label>
+                                    <input type="date" class="form-control" id="invoice_date" name="invoice_date" value="{{ invoice.invoice_date.strftime('%Y-%m-%d') }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="total_amount" class="form-label">发票金额</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        <input type="number" step="0.01" class="form-control" id="total_amount" name="total_amount" value="{{ invoice.total_amount }}" required>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="tax_amount" class="form-label">税额</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        <input type="number" step="0.01" class="form-control" id="tax_amount" name="tax_amount" value="{{ invoice.tax_amount }}" required>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="seller_name" class="form-label">销售方</label>
+                                    <input type="text" class="form-control" id="seller_name" name="seller_name" value="{{ invoice.seller_name }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="seller_tax_number" class="form-label">销售方税号</label>
+                                    <input type="text" class="form-control" id="seller_tax_number" name="seller_tax_number" value="{{ invoice.seller_tax_number }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="buyer_name" class="form-label">购买方</label>
+                                    <input type="text" class="form-control" id="buyer_name" name="buyer_name" value="{{ invoice.buyer_name }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="buyer_tax_number" class="form-label">购买方税号</label>
+                                    <input type="text" class="form-control" id="buyer_tax_number" name="buyer_tax_number" value="{{ invoice.buyer_tax_number }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <h5 class="mt-4 mb-3">发票明细项</h5>
+                        <div id="itemsContainer">
+                            {% for item in invoice.items %}
+                            <div class="item-row border p-3 mb-3 rounded">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">项目名称</label>
+                                            <input type="text" class="form-control" name="items[{{ loop.index0 }}][name]" value="{{ item.name }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">规格型号</label>
+                                            <input type="text" class="form-control" name="items[{{ loop.index0 }}][specification]" value="{{ item.specification or '' }}">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">单位</label>
+                                            <input type="text" class="form-control" name="items[{{ loop.index0 }}][unit]" value="{{ item.unit or '' }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">数量</label>
+                                            <input type="number" step="0.001" class="form-control item-quantity" name="items[{{ loop.index0 }}][quantity]" value="{{ item.quantity or '' }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">单价</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">¥</span>
+                                                <input type="number" step="0.01" class="form-control item-unit-price" name="items[{{ loop.index0 }}][unit_price]" value="{{ item.unit_price or '' }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">金额</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">¥</span>
+                                                <input type="number" step="0.01" class="form-control item-amount" name="items[{{ loop.index0 }}][amount]" value="{{ item.amount }}" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">税率 (%)</label>
+                                            <input type="number" step="0.01" class="form-control item-tax-rate" name="items[{{ loop.index0 }}][tax_rate]" value="{{ item.tax_rate }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">税额</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">¥</span>
+                                                <input type="number" step="0.01" class="form-control item-tax" name="items[{{ loop.index0 }}][tax]" value="{{ item.tax }}" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 d-flex align-items-end justify-content-end">
+                                        <button type="button" class="btn btn-sm btn-danger remove-item-btn">
+                                            <i class="fas fa-trash me-1"></i> 删除项目
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="items[{{ loop.index0 }}][id]" value="{{ item.id }}">
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-3">
+                            <button type="button" id="addItemBtn" class="btn btn-outline-primary">
+                                <i class="fas fa-plus-circle me-1"></i> 添加明细项
+                            </button>
+                            <div>
+                                <button type="button" class="btn btn-secondary" onclick="window.location.href='{{ url_for('main.invoice_detail', invoice_id=invoice.id) }}'">
+                                    <i class="fas fa-times me-1"></i> 取消
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> 保存更改
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 空白明细项模板 -->
+<template id="itemTemplate">
+    <div class="item-row border p-3 mb-3 rounded">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">项目名称</label>
+                    <input type="text" class="form-control" name="items[{index}][name]" required>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">规格型号</label>
+                    <input type="text" class="form-control" name="items[{index}][specification]">
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">单位</label>
+                    <input type="text" class="form-control" name="items[{index}][unit]">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">数量</label>
+                    <input type="number" step="0.001" class="form-control item-quantity" name="items[{index}][quantity]">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">单价</label>
+                    <div class="input-group">
+                        <span class="input-group-text">¥</span>
+                        <input type="number" step="0.01" class="form-control item-unit-price" name="items[{index}][unit_price]">
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">金额</label>
+                    <div class="input-group">
+                        <span class="input-group-text">¥</span>
+                        <input type="number" step="0.01" class="form-control item-amount" name="items[{index}][amount]" required>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">税率 (%)</label>
+                    <input type="number" step="0.01" class="form-control item-tax-rate" name="items[{index}][tax_rate]" value="13" required>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">税额</label>
+                    <div class="input-group">
+                        <span class="input-group-text">¥</span>
+                        <input type="number" step="0.01" class="form-control item-tax" name="items[{index}][tax]" required>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 d-flex align-items-end justify-content-end">
+                <button type="button" class="btn btn-sm btn-danger remove-item-btn">
+                    <i class="fas fa-trash me-1"></i> 删除项目
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/edit_invoice.js') }}"></script>
+{% endblock %} 
