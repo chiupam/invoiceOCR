@@ -2,6 +2,12 @@
 
 一个基于Flask的发票OCR识别和管理系统，可以上传发票图片，自动识别提取信息，并提供管理、导出和统计功能。
 
+## 关于项目
+
+- 项目名称：InvoiceOCR
+- 仓库地址：https://github.com/chiupam/InvoiceOCR
+- 开发工具：使用Cursor进行开发
+
 ## 功能特点
 
 - 发票图片上传与预览
@@ -225,7 +231,7 @@ flask cleanup --days=7
 
 ## 开发者
 
-- [Your Name](https://github.com/chiupam)
+- [chiupam](https://github.com/chiupam)
 
 ## 许可证
 
