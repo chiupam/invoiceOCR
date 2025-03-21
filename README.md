@@ -66,7 +66,18 @@ source .venv/bin/activate
 (.venv) pip3 install -r requirements.txt
 ```
 
-#### 4. 运行应用
+#### 4. 基本环境配置
+
+创建 `.env` 文件（可以复制 `.env.example` 并根据需要修改）：
+
+```bash
+# 复制示例配置
+(.venv) cp .env.example .env
+```
+
+注意：与旧版本不同，API密钥现在不需要在环境变量中配置，而是在Web界面中设置。
+
+#### 5. 运行应用
 
 ```bash
 (.venv) python3 run.py
@@ -74,7 +85,7 @@ source .venv/bin/activate
 
 应用将在 http://127.0.0.1:5001/ 运行。首次运行时，系统会自动初始化数据库并引导您完成必要的设置。
 
-#### 5. 首次访问配置
+#### 6. 首次访问配置
 
 首次访问系统时，会自动跳转到设置页面，需要配置以下信息：
 
@@ -84,7 +95,7 @@ source .venv/bin/activate
 
 配置完成后，即可开始使用系统的所有功能。
 
-#### 6. 退出虚拟环境（完成使用后）
+#### 7. 退出虚拟环境（完成使用后）
 
 ```bash
 (.venv) deactivate
@@ -112,10 +123,10 @@ git clone https://github.com/chiupam/invoiceOCR.git
 cd invoiceOCR
 ```
 
-##### (2) 创建环境变量文件
+##### (2) 创建环境变量文件（可选）
 ```bash
 cp .env.example .env
-# 编辑.env文件，填入腾讯云OCR API密钥
+# 仅需配置基本环境变量，API密钥通过Web界面配置
 ```
 
 ##### (3) 构建并启动容器
@@ -124,7 +135,7 @@ docker-compose up -d
 ```
 
 ##### (4) 访问应用
-浏览器访问 http://localhost:5001 即可使用应用。首次访问时，系统会引导您完成必要的设置。
+浏览器访问 http://localhost:5001 即可使用应用。首次访问时，系统会引导您完成腾讯云API密钥设置。
 
 #### 3. 常用Docker命令
 

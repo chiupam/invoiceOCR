@@ -13,6 +13,7 @@ services:
     environment:
       - FLASK_APP=run.py
       - FLASK_ENV=production
+      # 注意：API密钥现在通过Web界面设置页面配置，不再需要环境变量
     networks:
       - invoice_ocr_network
 

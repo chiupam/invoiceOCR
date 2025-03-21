@@ -60,13 +60,10 @@ def process_invoice_image(image_path):
         image_path: 图片在服务器上的完整路径
         
     返回:
-        发票数据字典
+        包含success标志和结果的字典
     """
     # 创建OCR API客户端
-    ocr_api = OCRClient(
-        secret_id=current_app.config['TENCENT_SECRET_ID'],
-        secret_key=current_app.config['TENCENT_SECRET_KEY']
-    )
+    ocr_api = OCRClient()
     
     try:
         # 调用OCR API识别发票
@@ -105,17 +102,95 @@ def process_invoice_image(image_path):
             except ValueError:
                 pass
         
-        # 保存JSON数据（可选）
-        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = os.path.join(current_app.config['OUTPUT_DIR'], f"invoice_{timestamp_str}.json")
-        with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(formatted_data, f, ensure_ascii=False, indent=4)
+        # 检查是否已存在相同代码和号码的发票
+        invoice_code = invoice_data.get('invoice_code')
+        invoice_number = invoice_data.get('invoice_number')
         
-        return invoice_data
+        from app.models import Invoice, InvoiceItem, db
+        
+        if invoice_code and invoice_number:
+            existing_invoice = Invoice.query.filter_by(
+                invoice_code=invoice_code,
+                invoice_number=invoice_number
+            ).first()
+            
+            if existing_invoice:
+                return {
+                    'success': True,
+                    'message': f'发票已存在 (ID: {existing_invoice.id})',
+                    'invoice_id': existing_invoice.id
+                }
+            
+            # 使用发票代码和号码创建新的文件名
+            filename = secure_filename(os.path.basename(image_path))
+            new_filename = f"{invoice_code}{invoice_number}{os.path.splitext(filename)[1]}"
+        else:
+            # 如果没有识别出代码和号码，使用原文件名
+            new_filename = os.path.basename(image_path)
+        
+        # 最终文件路径
+        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+        final_file_path = os.path.join(upload_folder, new_filename)
+        
+        # 移动文件
+        import shutil
+        shutil.copy2(image_path, final_file_path)
+        
+        # 删除原始临时文件
+        try:
+            os.remove(image_path)
+        except:
+            current_app.logger.warning(f"无法删除临时文件: {image_path}")
+        
+        # 创建新发票记录
+        invoice = Invoice(
+            invoice_code=invoice_data.get('invoice_code', ''),
+            invoice_number=invoice_data.get('invoice_number', ''),
+            invoice_type=invoice_data.get('invoice_type', ''),
+            invoice_date=invoice_data.get('invoice_date'),
+            seller_name=invoice_data.get('seller_name', ''),
+            seller_tax_id=invoice_data.get('seller_tax_id', ''),
+            seller_address=invoice_data.get('seller_address', ''),
+            seller_bank_info=invoice_data.get('seller_bank_info', ''),
+            buyer_name=invoice_data.get('buyer_name', ''),
+            buyer_tax_id=invoice_data.get('buyer_tax_id', ''),
+            buyer_address=invoice_data.get('buyer_address', ''),
+            buyer_bank_info=invoice_data.get('buyer_bank_info', ''),
+            total_amount=invoice_data.get('total_amount', ''),
+            total_tax=invoice_data.get('total_tax', ''),
+            amount_in_words=invoice_data.get('amount_in_words', ''),
+            amount_in_figures=invoice_data.get('amount_in_figures', ''),
+            image_path=new_filename  # 直接使用文件名，不要添加uploads/前缀
+        )
+        
+        db.session.add(invoice)
+        db.session.commit()
+        
+        # 创建发票项目关联
+        if 'json_data' in invoice_data and invoice_data['json_data']:
+            formatted_data = invoice_data['json_data']
+            # 处理商品项目
+            items_data = formatted_data.get('商品信息', [])
+            for item_data in items_data:
+                item = InvoiceItem.from_item_data(invoice.id, item_data)
+                db.session.add(item)
+            
+            # 保存完整JSON数据
+            invoice.json_data = json.dumps(formatted_data, ensure_ascii=False)
+            db.session.commit()
+        
+        return {
+            'success': True,
+            'message': '发票识别并保存成功',
+            'invoice_id': invoice.id
+        }
         
     except Exception as e:
         current_app.logger.error(f"处理发票图片时出错: {str(e)}")
-        return {}
+        return {
+            'success': False,
+            'message': f'处理发票时出错: {str(e)}'
+        }
 
 
 def get_invoice_statistics(invoices=None):

@@ -11,7 +11,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
 from app import create_app, db
-from app.models import Invoice, InvoiceItem
+from app.models import Invoice, InvoiceItem, Settings
 
 def json_serial(obj):
     """处理JSON序列化时无法处理的类型"""
@@ -149,15 +149,69 @@ def count_db_stats():
         for type_name, count in invoice_types.items():
             print(f"  {type_name}: {count}张")
 
+def query_settings(key=None, output_format='text'):
+    """查询数据库中的系统设置"""
+    app = create_app(os.getenv('FLASK_CONFIG') or 'default')
+    
+    with app.app_context():
+        if key:
+            # 查询特定key的设置
+            setting = Settings.query.filter_by(key=key).first()
+            if not setting:
+                print(f"未找到key为{key}的设置")
+                return
+            
+            settings = [setting]
+        else:
+            # 查询所有设置
+            settings = Settings.query.all()
+        
+        if not settings:
+            print("数据库中没有系统设置记录")
+            return
+        
+        if output_format == 'json':
+            # 输出JSON格式
+            result = []
+            for setting in settings:
+                setting_dict = {
+                    'id': setting.id,
+                    'key': setting.key,
+                    'value': setting.value,
+                    'updated_at': setting.updated_at
+                }
+                result.append(setting_dict)
+            
+            print(json.dumps(result, ensure_ascii=False, indent=2, default=json_serial))
+        else:
+            # 输出文本表格格式
+            print("\n系统设置:")
+            print("-"*60)
+            for setting in settings:
+                print(f"ID: {setting.id}")
+                print(f"键名: {setting.key}")
+                # 对于API密钥等敏感信息，只显示部分字符
+                if 'secret' in setting.key.lower() and setting.value:
+                    masked_value = setting.value[:4] + '*' * (len(setting.value) - 8) + setting.value[-4:] if len(setting.value) > 8 else '******'
+                    print(f"值: {masked_value} (已隐藏部分字符)")
+                else:
+                    print(f"值: {setting.value}")
+                print(f"更新时间: {setting.updated_at.strftime('%Y-%m-%d %H:%M:%S')}")
+                print("-"*60)
+
 def main():
     parser = argparse.ArgumentParser(description='发票OCR系统数据库查询工具')
     parser.add_argument('--id', type=int, help='查询特定ID的发票')
     parser.add_argument('--limit', type=int, help='限制查询结果数量')
     parser.add_argument('--format', choices=['text', 'json'], default='text', help='输出格式（文本或JSON）')
     parser.add_argument('--stats', action='store_true', help='显示数据库统计信息')
+    parser.add_argument('--settings', action='store_true', help='查询系统设置')
+    parser.add_argument('--key', type=str, help='查询特定键名的系统设置')
     args = parser.parse_args()
     
-    if args.stats:
+    if args.settings or args.key:
+        query_settings(key=args.key, output_format=args.format)
+    elif args.stats:
         count_db_stats()
     else:
         query_invoices(invoice_id=args.id, limit=args.limit, output_format=args.format)

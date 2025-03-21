@@ -34,7 +34,7 @@ def index():
     # 检查系统是否已设置
     if not check_system_setup():
         flash('请先完成系统设置', 'warning')
-        return redirect(url_for('settings'))
+        return redirect(url_for('main.settings'))
     
     # 获取筛选参数
     project_id = request.args.get('project_id', type=int)
@@ -170,100 +170,22 @@ def upload():
             temp_file_path = os.path.join(upload_folder, "temp_" + filename)
             file.save(temp_file_path)
             
-            # 获取项目ID (强制转换为整数，如果为空则为None)
-            project_id = request.form.get('project_id')
-            if project_id:
-                try:
-                    project_id = int(project_id)
-                    if project_id <= 0:  # 0或负数视为未分类
-                        project_id = None
-                    # 记住选择的项目ID
-                    session['last_project_id'] = project_id
-                except (ValueError, TypeError):
-                    project_id = None
-            else:
-                project_id = None  # 明确设置为None
+            # 获取项目ID
+            project_id = request.form.get('project_id', None)
+            if project_id == '':
+                project_id = None
             
-            # 处理发票图片并识别数据
-            invoice_data = process_invoice_image(temp_file_path)
+            # 处理发票图片
+            result = process_invoice_image(temp_file_path)
             
-            # 检查是否识别成功
-            if not invoice_data:
+            if not result.get('success'):
                 os.remove(temp_file_path)  # 删除临时文件
-                flash('发票识别失败，请检查图片质量或发票类型')
+                flash(f'发票识别失败: {result.get("message", "未知错误")}')
                 return redirect(request.url)
                 
-            # 检查是否已存在相同代码和号码的发票
-            invoice_code = invoice_data.get('invoice_code')
-            invoice_number = invoice_data.get('invoice_number')
-            
-            if invoice_code and invoice_number:
-                existing_invoice = Invoice.query.filter_by(
-                    invoice_code=invoice_code,
-                    invoice_number=invoice_number
-                ).first()
-                
-                if existing_invoice:
-                    os.remove(temp_file_path)  # 删除临时文件
-                    flash(f'该发票已存在 (ID: {existing_invoice.combined_id})')
-                    return redirect(url_for('main.invoice_detail', invoice_id=existing_invoice.id))
-                
-                # 使用发票代码和号码创建新的文件名
-                new_filename = f"{invoice_code}{invoice_number}{os.path.splitext(filename)[1]}"
-            else:
-                # 如果没有识别出代码和号码，使用时间戳和随机字符串
-                timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-                random_str = os.urandom(4).hex()
-                new_filename = f"invoice_{timestamp}_{random_str}{os.path.splitext(filename)[1]}"
-            
-            # 最终文件路径
-            final_file_path = os.path.join(upload_folder, new_filename)
-            
-            # 重命名文件
-            os.rename(temp_file_path, final_file_path)
-            
-            # 创建新发票记录
-            invoice = Invoice(
-                invoice_code=invoice_data.get('invoice_code', ''),
-                invoice_number=invoice_data.get('invoice_number', ''),
-                invoice_type=invoice_data.get('invoice_type', ''),
-                invoice_date=invoice_data.get('invoice_date'),
-                seller_name=invoice_data.get('seller_name', ''),
-                seller_tax_id=invoice_data.get('seller_tax_id', ''),
-                seller_address=invoice_data.get('seller_address', ''),
-                seller_bank_info=invoice_data.get('seller_bank_info', ''),
-                buyer_name=invoice_data.get('buyer_name', ''),
-                buyer_tax_id=invoice_data.get('buyer_tax_id', ''),
-                buyer_address=invoice_data.get('buyer_address', ''),
-                buyer_bank_info=invoice_data.get('buyer_bank_info', ''),
-                total_amount=invoice_data.get('total_amount', ''),
-                total_tax=invoice_data.get('total_tax', ''),
-                amount_in_words=invoice_data.get('amount_in_words', ''),
-                amount_in_figures=invoice_data.get('amount_in_figures', ''),
-                image_path=new_filename,  # 直接使用文件名，不要添加uploads/前缀
-                project_id=project_id  # 确保正确设置项目ID
-            )
-            
-            db.session.add(invoice)
-            db.session.commit()
-            
-            # 创建发票项目关联
-            if 'json_data' in invoice_data and invoice_data['json_data']:
-                formatted_data = invoice_data['json_data']
-                # 处理商品项目
-                items_data = formatted_data.get('商品信息', [])
-                for item_data in items_data:
-                    item = InvoiceItem.from_item_data(invoice.id, item_data)
-                    db.session.add(item)
-                
-                # 保存完整JSON数据
-                invoice.json_data = json.dumps(formatted_data, ensure_ascii=False)
-                db.session.commit()
-            
+            # 重定向到发票详情页面
             flash('发票上传和识别成功')
-            
-            # 重定向到发票详情页以便编辑识别结果
-            return redirect(url_for('main.invoice_detail', invoice_id=invoice.id))
+            return redirect(url_for('main.invoice_detail', invoice_id=result.get('invoice_id')))
         else:
             flash('不支持的文件类型')
             return redirect(request.url)
@@ -287,14 +209,6 @@ def invoice_detail(invoice_id):
     # 查询发票商品项目
     items = InvoiceItem.query.filter_by(invoice_id=invoice_id).all()
     
-    # 提取JSON数据（如果有）
-    json_data = None
-    if invoice.json_data:
-        try:
-            json_data = json.loads(invoice.json_data)
-        except:
-            pass
-    
     # 获取项目列表，用于侧边栏
     projects = Project.query.order_by(Project.name).all()
     
@@ -304,7 +218,6 @@ def invoice_detail(invoice_id):
     return render_template('invoice_detail.html', 
                           invoice=invoice, 
                           items=items,
-                          json_data=json_data,
                           projects=projects,
                           current_project_id=current_project_id)
 
@@ -683,14 +596,14 @@ def settings():
         # 验证输入
         if not tencent_secret_id or not tencent_secret_key:
             flash('请填写所有必填字段', 'danger')
-            return redirect(url_for('settings'))
+            return redirect(url_for('main.settings'))
         
         # 保存设置
         Settings.set_value('TENCENT_SECRET_ID', tencent_secret_id)
         Settings.set_value('TENCENT_SECRET_KEY', tencent_secret_key)
         
         flash('设置已保存', 'success')
-        return redirect(url_for('index'))
+        return redirect(url_for('main.index'))
     
     # 获取当前设置
     tencent_secret_id = Settings.get_value('TENCENT_SECRET_ID', '')
@@ -698,4 +611,71 @@ def settings():
     
     return render_template('settings.html', 
                            tencent_secret_id=tencent_secret_id,
-                           tencent_secret_key=tencent_secret_key) 
+                           tencent_secret_key=tencent_secret_key)
+
+@main.route('/quick_upload', methods=['POST'])
+def quick_upload():
+    """快速上传接口 - 用于拖放上传功能"""
+    # 检查系统是否已设置
+    if not check_system_setup():
+        flash('请先完成系统设置', 'warning')
+        return redirect(url_for('main.settings'))
+    
+    # 检查上传的文件
+    if 'invoice_file' not in request.files:
+        flash('未检测到文件', 'danger')
+        return redirect(url_for('main.index'))
+    
+    file = request.files['invoice_file']
+    if file.filename == '':
+        flash('未选择文件', 'danger')
+        return redirect(url_for('main.index'))
+    
+    if not allowed_file(file.filename):
+        flash('不支持的文件类型', 'danger')
+        return redirect(url_for('main.index'))
+    
+    try:
+        # 保存上传的文件
+        filename = save_uploaded_file(file)
+        
+        if not filename:
+            flash('文件保存失败', 'danger')
+            return redirect(url_for('main.index'))
+            
+        # 构建完整的文件路径
+        saved_path = os.path.join(current_app.root_path, 'static', 'uploads', filename)
+        
+        # 获取项目ID
+        project_id = request.form.get('project_id', None)
+        if project_id == '':
+            project_id = None
+        
+        # 处理发票图片
+        result = process_invoice_image(saved_path)
+        
+        if result.get('success'):
+            invoice_id = result.get('invoice_id')
+            
+            # 如果提供了项目ID，则更新发票记录
+            if project_id:
+                try:
+                    project_id = int(project_id)
+                    invoice = Invoice.query.get(invoice_id)
+                    if invoice:
+                        invoice.project_id = project_id
+                        db.session.commit()
+                except (ValueError, TypeError):
+                    pass
+                
+            flash('发票识别成功', 'success')
+            
+            return redirect(url_for('main.invoice_detail', invoice_id=invoice_id))
+        else:
+            # 识别失败，process_invoice_image已经尝试删除临时文件
+            flash(f'发票识别失败: {result["message"]}', 'danger')
+            return redirect(url_for('main.index'))
+            
+    except Exception as e:
+        flash(f'处理过程中出错: {str(e)}', 'danger')
+        return redirect(url_for('main.index')) 

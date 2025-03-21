@@ -10,9 +10,13 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">发票详情</h5>
                     <div>
-                        <a href="{{ url_for('main.upload') }}" class="btn btn-sm btn-outline-success">
+                        <a href="{{ url_for('main.upload') }}" class="btn btn-sm btn-outline-success drag-upload-btn" id="dragUploadBtn" title="支持拖拽图片到此处直接识别">
                             <i class="fas fa-cloud-upload-alt"></i> 继续识别
                         </a>
+                        <form id="quickUploadForm" action="{{ url_for('main.quick_upload') }}" method="POST" enctype="multipart/form-data" style="display:none;">
+                            <input type="file" name="invoice_file" id="quickFileInput" accept="image/*">
+                            <input type="hidden" name="project_id" value="{{ invoice.project_id }}">
+                        </form>
                         <a href="{{ url_for('main.invoice_edit', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-edit"></i> 编辑发票
                         </a>
@@ -108,18 +112,9 @@
                                 </table>
                                 
                                 <div class="mt-4">
-                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="collapse" data-bs-target="#jsonData">
-                                        <i class="fas fa-code me-1"></i> 显示JSON数据
-                                    </button>
                                     <a href="{{ url_for('main.update_invoice_from_json', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-warning">
                                         <i class="fas fa-sync me-1"></i> 从JSON更新
                                     </a>
-                                </div>
-                                <div class="collapse mt-3" id="jsonData">
-                                    <div class="card card-body">
-                                        <h6>原始JSON数据</h6>
-                                        <pre class="json-data">{{ invoice.json_data|tojson(indent=2) }}</pre>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -160,44 +155,6 @@
                                     </tbody>
                                 </table>
                             </div>
-                            
-                            {% if json_data and json_data.get('商品信息') %}
-                            <div class="mt-4">
-                                <h5>原始JSON中的商品信息</h5>
-                                <div class="table-responsive">
-                                    <table class="table table-hover table-bordered">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>#</th>
-                                                <th>项目名称</th>
-                                                <th>规格型号</th>
-                                                <th>单位</th>
-                                                <th>数量</th>
-                                                <th>单价</th>
-                                                <th>金额</th>
-                                                <th>税率</th>
-                                                <th>税额</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for item in json_data.get('商品信息', []) %}
-                                            <tr>
-                                                <td>{{ loop.index }}</td>
-                                                <td>{{ item.get('项目名称', '-') }}</td>
-                                                <td>{{ item.get('规格型号', '-') }}</td>
-                                                <td>{{ item.get('单位', '-') }}</td>
-                                                <td>{{ item.get('数量', '-') }}</td>
-                                                <td>{{ item.get('单价', '-') }}</td>
-                                                <td>{{ item.get('金额', '-') }}</td>
-                                                <td>{{ item.get('税率', '-') }}</td>
-                                                <td>{{ item.get('税额', '-') }}</td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -319,6 +276,19 @@
         display: flex;
         gap: 5px;
     }
+    
+    /* 拖放上传按钮样式 */
+    .drag-upload-btn {
+        position: relative;
+        transition: all 0.3s ease;
+    }
+    
+    .drag-upload-btn.drag-hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+        background-color: #28a745;
+        color: white;
+    }
 </style>
 {% endblock %}
 
@@ -373,6 +343,62 @@ document.addEventListener('DOMContentLoaded', function() {
         zoomReset.addEventListener('click', function() {
             scale = 1;
             previewImage.style.transform = 'scale(1)';
+        });
+        
+        // 拖放上传相关代码
+        const dragButton = document.getElementById('dragUploadBtn');
+        const fileInput = document.getElementById('quickFileInput');
+        const uploadForm = document.getElementById('quickUploadForm');
+        
+        if (!dragButton || !fileInput || !uploadForm) return;
+        
+        // 更新表单的action，指向正确的路由
+        uploadForm.action = "{{ url_for('main.quick_upload') }}";
+        
+        // 拖拽事件
+        dragButton.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.add('drag-hover');
+        });
+        
+        dragButton.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove('drag-hover');
+        });
+        
+        dragButton.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove('drag-hover');
+            
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length) {
+                const file = files[0];
+                // 检查是否为图片文件
+                if (!file.type.match('image.*')) {
+                    alert('请上传图片文件（JPG、PNG或GIF）');
+                    return;
+                }
+                
+                // 设置文件到input
+                fileInput.files = files;
+                
+                // 显示加载状态
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+                this.disabled = true;
+                
+                // 提交表单
+                uploadForm.submit();
+            }
+        });
+        
+        // 点击按钮时保持原有的导航功能
+        dragButton.addEventListener('click', function(e) {
+            // 原有的点击行为保持不变，不触发表单提交
         });
     }
 });

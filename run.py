@@ -38,10 +38,14 @@ def check_and_init_db():
     db_exists = db_path.exists()
     
     with app.app_context():
+        # 创建所有表 - 不管数据库是否存在，都确保所有表都被创建
+        print("确保所有数据库表存在...")
+        db.create_all()
+        
         if not db_exists:
-            print("数据库文件不存在，正在初始化数据库...")
-            db.create_all()
             print("数据库初始化完成！")
+        else:
+            print("数据库已存在，确保所有表都已更新")
         
         # 尝试从环境变量导入API密钥到数据库（兼容旧版本）
         # 检查是否已经存在API设置

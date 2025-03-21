@@ -140,11 +140,15 @@ class OCRClient:
         credential_scope = date + "/" + "ocr" + "/" + "tc3_request"
         hashed_canonical_request = hashlib.sha256(canonical_request.encode("utf-8")).hexdigest()
         string_to_sign = (algorithm + "\n" +
-                          str(timestamp) + "\n" +
-                          credential_scope + "\n" +
-                          hashed_canonical_request)
+                         "%d" % timestamp + "\n" +
+                         credential_scope + "\n" +
+                         hashed_canonical_request)
 
         # ************* 步骤 3：计算签名 *************
+        # 从credential对象获取secret_id和secret_key
+        secret_id = self.cred.secretId
+        secret_key = self.cred.secretKey
+        
         secret_date = sign(("TC3" + secret_key).encode("utf-8"), date)
         secret_service = sign(secret_date, "ocr")
         secret_signing = sign(secret_service, "tc3_request")
