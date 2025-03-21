@@ -274,11 +274,11 @@ def get_invoice_statistics(invoices=None):
     # 返回统计结果
     return {
         'invoice_count': invoice_count,
-        'total_amount': "{:.2f}".format(total_amount),
+        'total_amount': "{:,.2f}".format(total_amount),
         'current_month': {
             'month': current_month,
             'count': current_month_count,
-            'amount': "{:.2f}".format(current_month_amount)
+            'amount': "{:,.2f}".format(current_month_amount)
         },
         'monthly_data': {
             'labels': sorted_months,

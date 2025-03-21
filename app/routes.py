@@ -73,9 +73,28 @@ def index():
             query = query.order_by(Invoice.created_at.asc())
         else:
             query = query.order_by(Invoice.created_at.desc())
+    elif sort_by == 'items_count':
+        # 执行查询获取所有发票
+        invoices = query.all()
+        
+        # 查询每个发票的项目数量
+        invoice_items_count = {}
+        for invoice in invoices:
+            items_count = InvoiceItem.query.filter_by(invoice_id=invoice.id).count()
+            invoice_items_count[invoice.id] = items_count
+        
+        # 根据项目数量排序
+        if order == 'asc':
+            invoices = sorted(invoices, key=lambda x: invoice_items_count.get(x.id, 0))
+        else:
+            invoices = sorted(invoices, key=lambda x: invoice_items_count.get(x.id, 0), reverse=True)
+        
+        # 设置已排序标志，防止执行后面的查询
+        already_sorted = True
     
-    # 执行查询
-    invoices = query.all()
+    # 执行查询（如果没有按项目数量排序）
+    if not locals().get('already_sorted', False):
+        invoices = query.all()
     
     # 查询项目列表
     projects = Project.query.order_by(Project.name).all()
@@ -377,7 +396,7 @@ def api_statistics():
     # 构建最终数据结构
     formatted_data = {
         'invoice_count': invoice_count,
-        'total_amount': "{:.2f}".format(total_amount),
+        'total_amount': "{:,.2f}".format(total_amount),
         'monthly_data': {
             'labels': sorted_months,
             'counts': [monthly_data[month]['count'] for month in sorted_months],

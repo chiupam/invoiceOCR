@@ -98,11 +98,35 @@
                                     <th width="5%">图片</th>
                                     <th width="12%">类型</th>
                                     <th width="12%">号码</th>
-                                    <th width="10%">日期</th>
+                                    <th width="10%">
+                                        日期
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_date', order='asc') }}">
+                                            <i class="fas fa-sort-up{% if sort_by == 'invoice_date' and order == 'asc' %} text-primary{% endif %}"></i>
+                                        </a>
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='invoice_date', order='desc') }}">
+                                            <i class="fas fa-sort-down{% if sort_by == 'invoice_date' and order == 'desc' %} text-primary{% endif %}"></i>
+                                        </a>
+                                    </th>
                                     <th width="15%">销售方</th>
                                     <th width="15%">购买方</th>
-                                    <th width="15%">金额</th>
-                                    <th width="8%">项目数</th>
+                                    <th width="15%">
+                                        金额
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='amount', order='asc') }}">
+                                            <i class="fas fa-sort-up{% if sort_by == 'amount' and order == 'asc' %} text-primary{% endif %}"></i>
+                                        </a>
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='amount', order='desc') }}">
+                                            <i class="fas fa-sort-down{% if sort_by == 'amount' and order == 'desc' %} text-primary{% endif %}"></i>
+                                        </a>
+                                    </th>
+                                    <th width="8%">
+                                        项目数
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='items_count', order='asc') }}">
+                                            <i class="fas fa-sort-up{% if sort_by == 'items_count' and order == 'asc' %} text-primary{% endif %}"></i>
+                                        </a>
+                                        <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='items_count', order='desc') }}">
+                                            <i class="fas fa-sort-down{% if sort_by == 'items_count' and order == 'desc' %} text-primary{% endif %}"></i>
+                                        </a>
+                                    </th>
                                     <th width="8%">操作</th>
                                 </tr>
                             </thead>
@@ -235,7 +259,7 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">总金额</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">¥{{ stats.total_amount }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">¥{{ "{:,.2f}".format(float(stats.total_amount)) }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
