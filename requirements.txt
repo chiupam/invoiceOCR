@@ -1,33 +1,55 @@
 # Web框架和扩展
-Flask
-Flask-SQLAlchemy
-Flask-Bootstrap
-Flask-Moment
-Werkzeug
-Jinja2
-Flask-WTF
-Flask-Migrate
-Flask-Login
+Flask>=2.0.0
+Flask-SQLAlchemy>=2.5.1
+Flask-Bootstrap>=3.3.7
+Flask-Moment>=1.0.2
+Werkzeug>=2.0.0
+Jinja2>=3.0.0
+Flask-WTF>=1.0.0
+Flask-Migrate>=3.0.0
+Flask-Login>=0.5.0
 Flask-APScheduler
+Flask-Mail>=0.9.1
+Flask-CORS>=3.0.10
 
 # 数据库
 # 注意：Flask-SQLAlchemy会自动安装兼容的SQLAlchemy版本
-# SQLAlchemy
+# SQLAlchemy>=1.4.0
 
 # 数据处理
-pandas
-openpyxl
-xlsxwriter
+pandas>=1.3.0
+openpyxl>=3.0.7
+xlsxwriter>=3.0.3
 
 # HTTP请求
-requests
+requests>=2.26.0
 
 # 图像处理
-Pillow
+Pillow>=8.3.0
+opencv-python>=4.5.3
 
 # OCR服务
 tencentcloud-sdk-python
 
 # 其他工具
-python-dotenv
-pytz 
+python-dotenv>=0.19.0
+pytz
+
+# 其他工具
+gunicorn>=20.1.0
+
+# PDF处理
+PyPDF2>=1.26.0
+reportlab>=3.6.2
+pdfkit>=1.0.0
+
+# 数据库驱动
+psycopg2-binary>=2.9.1 # PostgreSQL
+# pymysql>=1.0.2 # MySQL
+
+# 云存储
+boto3>=1.18.0
+
+# MarkupSafe>=2.0.0
+# click>=8.0.0
+# itsdangerous>=2.0.0 
