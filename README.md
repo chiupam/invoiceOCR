@@ -35,7 +35,7 @@
 
 本项目支持两种部署方式：本地部署和Docker部署。
 
-### 本地部署（推荐使用虚拟环境）
+### 方式一：本地部署（使用虚拟环境）
 
 #### 1. 克隆项目
 
@@ -114,6 +114,58 @@ TENCENT_SECRET_KEY=你的腾讯云SecretKey
 - **依赖安装失败**：尝试更新pip后再安装 `python3 -m pip install --upgrade pip`
 - **数据库初始化错误**：确认是否有足够权限创建文件，或检查data目录是否存在
 - **OCR识别失败**：检查`.env`文件中的腾讯云API密钥是否正确
+
+### 方式二：Docker部署
+
+#### 1. 准备工作
+
+确保已安装Docker和Docker Compose：
+- [Docker安装指南](https://docs.docker.com/get-docker/)
+- [Docker Compose安装指南](https://docs.docker.com/compose/install/)
+
+#### 2. 部署步骤
+
+##### (1) 克隆仓库并进入项目目录
+```bash
+git clone https://github.com/chiupam/invoiceOCR.git
+cd invoiceOCR
+```
+
+##### (2) 创建环境变量文件
+```bash
+cp .env.example .env
+# 编辑.env文件，填入腾讯云OCR API密钥
+```
+
+##### (3) 构建并启动容器
+```bash
+docker-compose up -d
+```
+
+##### (4) 初始化数据库（首次部署时）
+```bash
+docker-compose exec invoice_ocr python3 tools/db_init.py
+```
+
+##### (5) 访问应用
+浏览器访问 http://localhost:5001 即可使用应用
+
+#### 3. 常用Docker命令
+
+- **查看容器日志**
+```bash
+docker-compose logs -f
+```
+
+- **停止容器**
+```bash
+docker-compose down
+```
+
+- **重新构建（更新代码后）**
+```bash
+docker-compose up -d --build
+```
 
 ## 项目结构
 
@@ -251,60 +303,6 @@ flask cleanup --days=7
 - `/api/statistics` - 获取发票统计数据
 - `/api/update-all-invoices` - 更新所有发票数据
 - `/api/cleanup-exported-files` - 清理导出的文件
-
-## Docker部署
-
-本项目支持使用Docker进行快速部署。
-
-### 准备工作
-
-确保已安装Docker和Docker Compose：
-- [Docker安装指南](https://docs.docker.com/get-docker/)
-- [Docker Compose安装指南](https://docs.docker.com/compose/install/)
-
-### 使用Docker Compose部署
-
-1. 克隆仓库并进入项目目录
-```bash
-git clone https://github.com/chiupam/invoiceOCR.git
-cd invoiceOCR
-```
-
-2. 创建环境变量文件
-```bash
-cp .env.example .env
-# 编辑.env文件，填入腾讯云OCR API密钥
-```
-
-3. 构建并启动容器
-```bash
-docker-compose up -d
-```
-
-4. 初始化数据库（首次部署时）
-```bash
-docker-compose exec invoice_ocr python3 tools/db_init.py
-```
-
-5. 访问应用
-浏览器访问 http://localhost:5001 即可使用应用
-
-### 其他Docker命令
-
-- 查看容器日志
-```bash
-docker-compose logs -f
-```
-
-- 停止容器
-```bash
-docker-compose down
-```
-
-- 重新构建（更新代码后）
-```bash
-docker-compose up -d --build
-```
 
 ## 开发者
 
