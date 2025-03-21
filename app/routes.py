@@ -337,8 +337,10 @@ def api_statistics():
     # 总发票数
     invoice_count = len(invoices)
     
-    # 总金额
-    total_amount = sum(float(invoice.total_amount.replace('¥', '').strip()) if invoice.total_amount else 0 for invoice in invoices)
+    # 总金额 - 使用价税合计(小写)
+    total_amount = sum(float(invoice.amount_in_figures.replace('¥', '').replace('￥', '').replace(' ', '').replace('元', '').strip()) 
+                       if invoice.amount_in_figures else 0 
+                       for invoice in invoices)
     
     # 月度统计数据
     monthly_data = {}
@@ -354,9 +356,9 @@ def api_statistics():
             
             # 累加金额
             amount = 0
-            if invoice.total_amount:
+            if invoice.amount_in_figures:
                 try:
-                    amount = float(invoice.total_amount.replace('¥', '').strip())
+                    amount = float(invoice.amount_in_figures.replace('¥', '').replace('￥', '').replace(' ', '').replace('元', '').strip())
                 except ValueError:
                     pass
             monthly_data[month_key]['amount'] += amount

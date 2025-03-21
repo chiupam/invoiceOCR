@@ -207,13 +207,13 @@ def get_invoice_statistics(invoices=None):
     # 总发票数
     invoice_count = len(invoices)
     
-    # 总金额
+    # 总金额 - 使用价税合计(小写)而不是合计金额
     total_amount = 0
     for invoice in invoices:
-        if invoice.total_amount:
+        if invoice.amount_in_figures:
             try:
                 # 去除¥符号和空格，转为浮点数
-                amount = float(invoice.total_amount.replace('¥', '').strip())
+                amount = float(invoice.amount_in_figures.replace('¥', '').replace('￥', '').replace(' ', '').replace('元', '').strip())
                 total_amount += amount
             except ValueError:
                 # 忽略无法转换的金额
@@ -235,10 +235,10 @@ def get_invoice_statistics(invoices=None):
             # 统计当月发票
             if month_key == current_month:
                 current_month_count += 1
-                # 累加当月金额
-                if invoice.total_amount:
+                # 累加当月金额 - 使用价税合计
+                if invoice.amount_in_figures:
                     try:
-                        amount = float(invoice.total_amount.replace('¥', '').strip())
+                        amount = float(invoice.amount_in_figures.replace('¥', '').replace('￥', '').replace(' ', '').replace('元', '').strip())
                         current_month_amount += amount
                     except ValueError:
                         pass
@@ -253,9 +253,9 @@ def get_invoice_statistics(invoices=None):
             
             # 累加金额
             amount = 0
-            if invoice.total_amount:
+            if invoice.amount_in_figures:
                 try:
-                    amount = float(invoice.total_amount.replace('¥', '').strip())
+                    amount = float(invoice.amount_in_figures.replace('¥', '').replace('￥', '').replace(' ', '').replace('元', '').strip())
                 except ValueError:
                     pass
             monthly_data[month_key]['amount'] += amount
