@@ -71,7 +71,7 @@
                                     <td>{{ invoice.invoice_number }}</td>
                                     <td>{{ invoice.invoice_type }}</td>
                                     <td>{{ invoice.invoice_date }}</td>
-                                    <td>¥ {{ "%.2f"|format(invoice.total_amount|float) if invoice.total_amount else "0.00" }}</td>
+                                    <td>¥ {{ "%.2f"|format(invoice.amount_in_figures|replace('¥', '')|replace('￥', '')|replace(',', '')|replace('元', '')|float) if invoice.amount_in_figures else "0.00" }}</td>
                                     <td>{{ invoice.seller_name }}</td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
