@@ -252,6 +252,60 @@ flask cleanup --days=7
 - `/api/update-all-invoices` - 更新所有发票数据
 - `/api/cleanup-exported-files` - 清理导出的文件
 
+## Docker部署
+
+本项目支持使用Docker进行快速部署。
+
+### 准备工作
+
+确保已安装Docker和Docker Compose：
+- [Docker安装指南](https://docs.docker.com/get-docker/)
+- [Docker Compose安装指南](https://docs.docker.com/compose/install/)
+
+### 使用Docker Compose部署
+
+1. 克隆仓库并进入项目目录
+```bash
+git clone https://github.com/chiupam/invoiceOCR.git
+cd invoiceOCR
+```
+
+2. 创建环境变量文件
+```bash
+cp .env.example .env
+# 编辑.env文件，填入腾讯云OCR API密钥
+```
+
+3. 构建并启动容器
+```bash
+docker-compose up -d
+```
+
+4. 初始化数据库（首次部署时）
+```bash
+docker-compose exec invoice_ocr python3 tools/db_init.py
+```
+
+5. 访问应用
+浏览器访问 http://localhost:5000 即可使用应用
+
+### 其他Docker命令
+
+- 查看容器日志
+```bash
+docker-compose logs -f
+```
+
+- 停止容器
+```bash
+docker-compose down
+```
+
+- 重新构建（更新代码后）
+```bash
+docker-compose up -d --build
+```
+
 ## 开发者
 
 - [chiupam](https://github.com/chiupam)
