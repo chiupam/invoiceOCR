@@ -10,7 +10,7 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">发票详情</h5>
                     <div>
-                        <a href="{{ url_for('main.upload') }}" class="btn btn-sm btn-outline-success drag-upload-btn" id="dragUploadBtn" title="支持拖拽图片到此处直接识别">
+                        <a href="{{ url_for('main.upload', project_id=invoice.project_id) }}" class="btn btn-sm btn-outline-success drag-upload-btn" id="dragUploadBtn" title="支持拖拽图片到此处直接识别">
                             <i class="fas fa-cloud-upload-alt"></i> 继续识别
                         </a>
                         <form id="quickUploadForm" action="{{ url_for('main.quick_upload') }}" method="POST" enctype="multipart/form-data" style="display:none;">

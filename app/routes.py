@@ -176,7 +176,7 @@ def upload():
                 project_id = None
             
             # 处理发票图片
-            result = process_invoice_image(temp_file_path)
+            result = process_invoice_image(temp_file_path, project_id=project_id)
             
             if not result.get('success'):
                 os.remove(temp_file_path)  # 删除临时文件
@@ -652,7 +652,7 @@ def quick_upload():
             project_id = None
         
         # 处理发票图片
-        result = process_invoice_image(saved_path)
+        result = process_invoice_image(saved_path, project_id=project_id)
         
         if result.get('success'):
             invoice_id = result.get('invoice_id')

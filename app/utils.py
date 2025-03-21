@@ -52,12 +52,13 @@ def save_uploaded_file(file):
     return None
 
 
-def process_invoice_image(image_path):
+def process_invoice_image(image_path, project_id=None):
     """
     处理发票图片，识别并保存发票数据
     
     参数:
         image_path: 图片在服务器上的完整路径
+        project_id: 项目ID，默认为None
         
     返回:
         包含success标志和结果的字典
@@ -160,7 +161,8 @@ def process_invoice_image(image_path):
             total_tax=invoice_data.get('total_tax', ''),
             amount_in_words=invoice_data.get('amount_in_words', ''),
             amount_in_figures=invoice_data.get('amount_in_figures', ''),
-            image_path=new_filename  # 直接使用文件名，不要添加uploads/前缀
+            image_path=new_filename,  # 直接使用文件名，不要添加uploads/前缀
+            project_id=project_id
         )
         
         db.session.add(invoice)
