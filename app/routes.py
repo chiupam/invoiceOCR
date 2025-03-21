@@ -301,10 +301,16 @@ def upload():
             
             # 检查是否为XHR请求（AJAX）
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json':
+                # 获取发票详细信息，添加发票代码和发票号码到响应中
+                invoice_id = result.get('invoice_id')
+                invoice = Invoice.query.get(invoice_id)
+                
                 response_data = {
                     'success': True,
                     'message': '发票上传和识别成功',
-                    'invoice_id': result.get('invoice_id')
+                    'invoice_id': invoice_id,
+                    'invoice_code': invoice.invoice_code,
+                    'invoice_number': invoice.invoice_number
                 }
                 print(f"返回JSON响应: {response_data}")
                 return jsonify(response_data)
