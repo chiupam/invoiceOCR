@@ -1,0 +1,23 @@
+version: '3'
+
+services:
+  invoice_ocr:
+    build: .
+    container_name: invoice_ocr
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./app/static/uploads:/app/app/static/uploads
+    environment:
+      - FLASK_APP=run.py
+      - FLASK_ENV=production
+      - TENCENT_SECRET_ID=${TENCENT_SECRET_ID}
+      - TENCENT_SECRET_KEY=${TENCENT_SECRET_KEY}
+    networks:
+      - invoice_ocr_network
+
+networks:
+  invoice_ocr_network:
+    driver: bridge 

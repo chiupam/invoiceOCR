@@ -5,7 +5,7 @@
 ## 关于项目
 
 - 项目名称：InvoiceOCR
-- 仓库地址：https://github.com/chiupam/InvoiceOCR
+- 仓库地址：https://github.com/chiupam/invoiceOCR
 - 开发工具：使用Cursor进行开发
 
 ## 功能特点
@@ -33,38 +33,49 @@
 
 ## 安装部署
 
-### 1. 克隆项目
+本项目支持两种部署方式：本地部署和Docker部署。
+
+### 本地部署（推荐使用虚拟环境）
+
+#### 1. 克隆项目
 
 ```bash
-git clone https://github.com/chiupam/InvoiceOCR.git
-cd InvoiceOCR
+git clone https://github.com/chiupam/invoiceOCR.git
+cd invoiceOCR
 ```
 
-### 2. 创建虚拟环境
+#### 2. 创建并激活虚拟环境
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
-# 或者
-.venv\Scripts\activate  # Windows
+# 创建虚拟环境
+python3 -m venv .venv
+
+# 激活虚拟环境 (Linux/Mac)
+source .venv/bin/activate
+
+# 激活虚拟环境 (Windows)
+# .venv\Scripts\activate
 ```
 
-### 3. 安装依赖
+激活后，命令行前面会出现`(.venv)`前缀，表示当前处于虚拟环境中。后续所有命令都应在此环境中执行。
+
+#### 3. 安装依赖
 
 ```bash
-pip install -r requirements.txt
+# 确保在虚拟环境中执行
+(.venv) pip3 install -r requirements.txt
 ```
 
-### 4. 配置环境变量
+#### 4. 配置环境变量
 
 创建 `.env` 文件（可以复制 `.env.example` 并填写您自己的值）：
 
 ```bash
 # 复制示例配置
-cp .env.example .env
+(.venv) cp .env.example .env
 
 # 编辑配置文件
-nano .env  # 或使用其他编辑器
+(.venv) nano .env  # 或使用其他编辑器
 ```
 
 设置以下必要的环境变量：
@@ -78,19 +89,31 @@ TENCENT_SECRET_KEY=你的腾讯云SecretKey
 
 **注意**：请勿将包含实际API密钥的`.env`文件提交到Git仓库！
 
-### 5. 初始化数据库
+#### 5. 初始化数据库
 
 ```bash
-python tools/db_init.py
+(.venv) python3 tools/db_init.py
 ```
 
-### 6. 运行应用
+#### 6. 运行应用
 
 ```bash
-python run.py
+(.venv) python3 run.py
 ```
 
 应用将在 http://127.0.0.1:5000/ 运行。
+
+#### 7. 退出虚拟环境（完成使用后）
+
+```bash
+(.venv) deactivate
+```
+
+#### 常见问题解决
+
+- **依赖安装失败**：尝试更新pip后再安装 `python3 -m pip install --upgrade pip`
+- **数据库初始化错误**：确认是否有足够权限创建文件，或检查data目录是否存在
+- **OCR识别失败**：检查`.env`文件中的腾讯云API密钥是否正确
 
 ## 项目结构
 
@@ -212,10 +235,10 @@ InvoiceOCR/
 
 ```bash
 # 初始化数据库
-python tools/db_init.py [--drop]
+python3 tools/db_init.py [--drop]
 
 # 查询数据库
-python tools/db_query.py
+python3 tools/db_query.py
 
 # 清理过期文件
 flask cleanup --days=7
