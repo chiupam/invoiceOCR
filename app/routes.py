@@ -837,4 +837,63 @@ def quick_upload():
             
     except Exception as e:
         flash(f'处理过程中出错: {str(e)}', 'danger')
-        return redirect(url_for('main.index')) 
+        return redirect(url_for('main.index'))
+
+@main.route('/api/scan-qrcode/<image_filename>', methods=['GET'])
+def scan_qrcode_api(image_filename):
+    """API接口：扫描发票图片上的二维码"""
+    try:
+        from .utils import scan_invoice_qrcode
+        
+        # 构建图片完整路径
+        image_path = os.path.join(current_app.root_path, 'static', 'uploads', image_filename)
+        
+        # 检查文件是否存在
+        if not os.path.exists(image_path):
+            return jsonify({
+                'success': False,
+                'message': f'图片文件不存在: {image_filename}'
+            })
+            
+        # 执行二维码扫描
+        qrcode_result = scan_invoice_qrcode(image_path)
+        
+        if qrcode_result:
+            # 查询数据库中的发票记录，用于对比
+            invoice = None
+            if 'invoice_code' in qrcode_result and 'invoice_number' in qrcode_result:
+                invoice = Invoice.query.filter_by(
+                    invoice_code=qrcode_result['invoice_code'],
+                    invoice_number=qrcode_result['invoice_number']
+                ).first()
+            
+            return jsonify({
+                'success': True,
+                'message': '二维码识别成功',
+                'qrcode_data': qrcode_result,
+                'ocr_data': {
+                    'invoice_id': invoice.id if invoice else None,
+                    'invoice_code': invoice.invoice_code if invoice else None,
+                    'invoice_number': invoice.invoice_number if invoice else None,
+                    'invoice_date': invoice.invoice_date.strftime('%Y-%m-%d') if invoice and invoice.invoice_date else None,
+                    'amount_in_figures': invoice.amount_in_figures if invoice else None
+                } if invoice else None,
+                'comparison': {
+                    'code_match': invoice and invoice.invoice_code == qrcode_result.get('invoice_code'),
+                    'number_match': invoice and invoice.invoice_number == qrcode_result.get('invoice_number'),
+                    'date_match': invoice and invoice.invoice_date and invoice.invoice_date.strftime('%Y-%m-%d') == qrcode_result.get('invoice_date')
+                } if invoice else None
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': '未能识别二维码',
+                'image': image_filename
+            })
+    
+    except Exception as e:
+        current_app.logger.error(f"扫描二维码API出错: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'处理过程中出错: {str(e)}'
+        }) 
