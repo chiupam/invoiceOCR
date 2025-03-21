@@ -249,4 +249,21 @@ body {
 
 .nav-link.active i {
     color: #007bff;
+}
+
+/* 图片懒加载相关样式 */
+img.lazy-load {
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+img.lazy-load[src]:not([src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"]) {
+    opacity: 1;
+}
+
+.invoice-thumbnail {
+    max-width: 80px;
+    max-height: 60px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 } 

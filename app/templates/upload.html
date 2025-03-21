@@ -14,7 +14,7 @@
                     <div class="row">
                         <div class="col-md-6 offset-md-3">
                             <div class="upload-container">
-                                <form method="POST" enctype="multipart/form-data" class="upload-form">
+                                <form method="POST" enctype="multipart/form-data" class="upload-form" id="uploadForm">
                                     <!-- 选择项目 -->
                                     <div class="form-group">
                                         <label for="project_id">项目分类</label>
@@ -33,14 +33,15 @@
                                             </div>
                                             <p class="mt-3">拖拽发票图片到此处，或点击选择文件</p>
                                             <p class="text-muted small">支持 JPG, PNG, GIF 格式</p>
+                                            <p class="text-primary">可选择多个文件进行批量上传</p>
                                         </div>
-                                        <input type="file" name="invoice_file" id="fileInput" class="d-none" accept="image/*">
+                                        <input type="file" name="invoice_file" id="fileInput" class="d-none" accept="image/*" multiple>
                                     </div>
                                     
                                     <div class="mb-3 preview-container d-none" id="previewContainer">
-                                        <h6>预览:</h6>
-                                        <div class="text-center">
-                                            <img id="imagePreview" class="img-fluid img-thumbnail" style="max-height: 300px;">
+                                        <h6>预览 (<span id="fileCount">0</span>个文件):</h6>
+                                        <div id="previewList" class="row">
+                                            <!-- 预览图片将在这里动态添加 -->
                                         </div>
                                     </div>
                                     
@@ -64,9 +65,10 @@
                                     <h5 class="card-title">上传说明</h5>
                                     <ul class="mb-0">
                                         <li>系统支持上传JPG、PNG、GIF格式的发票图片</li>
+                                        <li>支持批量上传多个发票图片，提高工作效率</li>
                                         <li>请确保图片清晰，发票内容完整可见</li>
                                         <li>上传后系统会自动识别发票内容并保存到数据库</li>
-                                        <li>上传过程可能需要几秒钟时间，请耐心等待</li>
+                                        <li>批量处理可能需要较长时间，请耐心等待</li>
                                         <li>如果识别结果不准确，可以在后续页面手动编辑</li>
                                     </ul>
                                 </div>
@@ -74,6 +76,33 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 批量上传进度提示 -->
+<div class="modal fade" id="uploadProgressModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">处理中</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭" onclick="window.location.href='/'"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="mb-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">正在处理...</span>
+                    </div>
+                </div>
+                <p>正在处理第 <span id="currentFileNum">0</span> 个文件，共 <span id="totalFileNum">0</span> 个</p>
+                <div class="progress">
+                    <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                </div>
+                <p class="mt-2 text-muted small">批量处理可能需要一些时间，请不要关闭页面</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="window.location.href='/'">取消并返回</button>
             </div>
         </div>
     </div>
@@ -103,6 +132,39 @@
     .preview-container {
         margin-top: 20px;
         margin-bottom: 20px;
+    }
+    
+    .preview-item {
+        position: relative;
+        margin-bottom: 15px;
+    }
+    
+    .preview-item img {
+        max-height: 150px;
+        width: auto;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .preview-item .remove-file {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: rgba(255,255,255,0.8);
+        border-radius: 50%;
+        padding: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        color: #dc3545;
+    }
+    
+    .file-name {
+        margin-top: 5px;
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
     }
 </style>
 {% endblock %}

@@ -1,4 +1,16 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // 初始化懒加载
+    initLazyLoading();
+    
+    // 初始化图表
+    initCharts();
+    
+    // 处理删除模态框
+    setupDeleteModal();
+    
+    // 处理发票项目显示
+    setupItemsToggle();
+    
     // 加载图表数据
     const chartDataElement = document.getElementById('chartData');
     const typeDataElement = document.getElementById('typeData');
@@ -36,8 +48,146 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = currentUrl.toString();
         });
     });
+});
+
+// 图片懒加载功能
+function initLazyLoading() {
+    const lazyImages = document.querySelectorAll('img.lazy-load');
     
-    // 处理删除模态框
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver(function(entries, observer) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    const image = entry.target;
+                    image.src = image.dataset.src;
+                    image.classList.remove('lazy-load');
+                    imageObserver.unobserve(image);
+                }
+            });
+        });
+        
+        lazyImages.forEach(function(image) {
+            imageObserver.observe(image);
+        });
+    } else {
+        // 备用方案：为不支持IntersectionObserver的浏览器提供简单的滚动加载
+        let lazyLoadThrottleTimeout;
+        
+        function lazyLoad() {
+            if (lazyLoadThrottleTimeout) {
+                clearTimeout(lazyLoadThrottleTimeout);
+            }
+            
+            lazyLoadThrottleTimeout = setTimeout(function() {
+                const scrollTop = window.pageYOffset;
+                
+                lazyImages.forEach(function(img) {
+                    if (img.offsetTop < (window.innerHeight + scrollTop)) {
+                        img.src = img.dataset.src;
+                        img.classList.remove('lazy-load');
+                    }
+                });
+                
+                if (lazyImages.length == 0) { 
+                    document.removeEventListener('scroll', lazyLoad);
+                    window.removeEventListener('resize', lazyLoad);
+                    window.removeEventListener('orientationChange', lazyLoad);
+                }
+            }, 20);
+        }
+        
+        document.addEventListener('scroll', lazyLoad);
+        window.addEventListener('resize', lazyLoad);
+        window.addEventListener('orientationChange', lazyLoad);
+        
+        // 立即执行一次，加载视口中的图片
+        lazyLoad();
+    }
+}
+
+// 图表初始化
+function initCharts() {
+    // 月度数据图表
+    try {
+        const chartDataElement = document.getElementById('chartData');
+        if (chartDataElement) {
+            const chartData = JSON.parse(chartDataElement.textContent);
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: '发票数量',
+                        data: chartData.counts,
+                        backgroundColor: 'rgba(78, 115, 223, 0.5)',
+                        borderColor: 'rgba(78, 115, 223, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            precision: 0
+                        }
+                    }
+                }
+            });
+        }
+    } catch (e) {
+        console.error('初始化月度图表失败:', e);
+    }
+    
+    // 发票类型分布图表
+    try {
+        const typeDataElement = document.getElementById('typeData');
+        if (typeDataElement) {
+            const typeData = JSON.parse(typeDataElement.textContent);
+            const ctx = document.getElementById('typeChart').getContext('2d');
+            
+            if (typeData.labels.length > 0) {
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: typeData.labels,
+                        datasets: [{
+                            data: typeData.counts,
+                            backgroundColor: [
+                                '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
+                                '#5a5c69', '#858796', '#6610f2', '#fd7e14', '#20c9a6'
+                            ],
+                            hoverBackgroundColor: [
+                                '#2e59d9', '#17a673', '#2c9faf', '#dda20a', '#be2617',
+                                '#3a3b45', '#60616f', '#4e0bc1', '#cc5a00', '#169b81'
+                            ],
+                            hoverBorderColor: "rgba(234, 236, 244, 1)",
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            } else {
+                document.getElementById('typeChart').parentElement.innerHTML = '<div class="text-center py-4 text-muted">暂无类型数据</div>';
+            }
+        }
+    } catch (e) {
+        console.error('初始化类型图表失败:', e);
+    }
+}
+
+// 设置删除模态框
+function setupDeleteModal() {
     const deleteModal = document.getElementById('deleteModal');
     if (deleteModal) {
         deleteModal.addEventListener('show.bs.modal', function (event) {
@@ -46,22 +196,33 @@ document.addEventListener('DOMContentLoaded', function() {
             const type = button.getAttribute('data-type');
             const number = button.getAttribute('data-number');
             
-            const confirmText = deleteModal.querySelector('.modal-body p:first-child');
-            const invoiceInfo = document.createElement('p');
-            invoiceInfo.innerHTML = `<strong>发票信息: </strong>${type} - ${number}`;
+            const modalBody = this.querySelector('.modal-body');
+            modalBody.textContent = `您确定要删除${type || ''}发票${number || ''}吗？此操作无法撤销。`;
             
-            if (deleteModal.querySelector('.modal-body p:nth-child(2)')) {
-                deleteModal.querySelector('.modal-body p:nth-child(2)').remove();
-            }
-            
-            deleteModal.querySelector('.modal-body').appendChild(invoiceInfo);
-            
-            // 设置表单的action属性
-            const deleteForm = deleteModal.querySelector('#deleteForm');
-            deleteForm.action = `/invoice/${id}/delete`;
+            const form = document.getElementById('deleteForm');
+            form.action = `/invoice/${id}/delete`;
         });
     }
-});
+}
+
+// 设置发票项目切换
+function setupItemsToggle() {
+    const toggleBtns = document.querySelectorAll('.toggle-items');
+    toggleBtns.forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            
+            const tr = this.closest('tr');
+            const id = tr.getAttribute('data-target');
+            const collapse = document.querySelector(id);
+            
+            if (collapse) {
+                const bsCollapse = new bootstrap.Collapse(collapse);
+                bsCollapse.toggle();
+            }
+        });
+    });
+}
 
 /**
  * 渲染月度发票统计图表

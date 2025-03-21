@@ -135,7 +135,7 @@
                                 <tr data-toggle="collapse" data-target="#items-{{ invoice.id }}" class="accordion-toggle invoice-row" role="button" aria-expanded="false">
                                     <td>
                                         {% if invoice.image_path %}
-                                        <img src="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" class="invoice-thumbnail" alt="发票图片">
+                                        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" class="invoice-thumbnail lazy-load" alt="发票图片">
                                         {% else %}
                                         <div class="no-image">无图片</div>
                                         {% endif %}
@@ -228,6 +228,45 @@
                             </tbody>
                         </table>
                     </div>
+                    
+                    <!-- 分页导航 -->
+                    {% if pagination.pages > 1 %}
+                    <nav aria-label="发票列表分页" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            <!-- 上一页按钮 -->
+                            <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('main.index', page=pagination.prev_num, project_id=current_project_id, sort_by=sort_by, order=order) }}" aria-label="上一页">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            
+                            <!-- 页码按钮 -->
+                            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                {% if page_num %}
+                                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                                        <a class="page-link" href="{{ url_for('main.index', page=page_num, project_id=current_project_id, sort_by=sort_by, order=order) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <!-- 下一页按钮 -->
+                            <li class="page-item {% if pagination.page == pagination.pages %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('main.index', page=pagination.next_num, project_id=current_project_id, sort_by=sort_by, order=order) }}" aria-label="下一页">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        </ul>
+                        <div class="text-center text-muted small">
+                            共 {{ pagination.total }} 条记录，当前第 {{ pagination.page }}/{{ pagination.pages }} 页
+                        </div>
+                    </nav>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -259,7 +298,7 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">总金额</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">¥{{ "{:,.2f}".format(float(stats.total_amount)) }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">¥{{ stats.total_amount }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
