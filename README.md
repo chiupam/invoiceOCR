@@ -276,8 +276,8 @@ InvoiceOCR/
 # 初始化数据库
 python3 tools/db_init.py [--drop]
 
-# 查询数据库
-python3 tools/db_query.py
+# 查询数据库中的发票
+python3 tools/db_query.py [--id=1] [--limit=10] [--stats]
 
 # 清理过期文件
 flask cleanup --days=7

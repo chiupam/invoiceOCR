@@ -8,13 +8,16 @@ import time
 import base64
 import os
 from datetime import datetime
+
+# 添加项目根目录到Python路径，以便能够正确导入app模块
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from tencentcloud.common import credential
 from tencentcloud.common.profile.client_profile import ClientProfile
 from tencentcloud.common.profile.http_profile import HttpProfile
 from tencentcloud.common.exception.tencent_cloud_sdk_exception import TencentCloudSDKException
 from tencentcloud.ocr.v20181119 import ocr_client, models
 from dotenv import load_dotenv
-from app.models import Settings
 
 # 加载环境变量
 load_dotenv()
@@ -31,15 +34,23 @@ def sign(key, msg):
 
 
 def get_api_credentials():
-    """从数据库获取API凭证"""
-    secret_id = Settings.get_value('TENCENT_SECRET_ID')
-    secret_key = Settings.get_value('TENCENT_SECRET_KEY')
+    """获取API凭证，优先从环境变量获取"""
+    # 直接从环境变量获取
+    secret_id = os.environ.get('TENCENT_SECRET_ID')
+    secret_key = os.environ.get('TENCENT_SECRET_KEY')
     
-    # 如果数据库中没有，尝试从环境变量获取（兼容旧版本）
-    if not secret_id:
-        secret_id = os.environ.get('TENCENT_SECRET_ID')
-    if not secret_key:
-        secret_key = os.environ.get('TENCENT_SECRET_KEY')
+    # 如果在Flask应用中，尝试从数据库获取
+    try:
+        from flask import current_app
+        if current_app:
+            from app.models import Settings
+            if not secret_id:
+                secret_id = Settings.get_value('TENCENT_SECRET_ID')
+            if not secret_key:
+                secret_key = Settings.get_value('TENCENT_SECRET_KEY')
+    except (ImportError, RuntimeError):
+        # 不在Flask应用上下文中，继续使用环境变量
+        pass
     
     return secret_id, secret_key
 
@@ -52,7 +63,7 @@ class OCRClient:
         secret_id, secret_key = get_api_credentials()
         
         if not secret_id or not secret_key:
-            raise ValueError('尚未配置腾讯云API密钥，请先在系统设置中配置')
+            raise ValueError('未找到腾讯云API密钥，请确保设置了环境变量TENCENT_SECRET_ID和TENCENT_SECRET_KEY，或在系统设置中配置')
         
         # 实例化一个认证对象
         self.cred = credential.Credential(secret_id, secret_key)
@@ -179,22 +190,38 @@ class OCRClient:
             raise Exception(f"API请求失败: {err}")
 
 
-# 示例用法
+# 如果直接运行此脚本
 if __name__ == "__main__":
-    import sys
-    
     if len(sys.argv) < 2:
-        print("用法: python ocr_api.py <图片路径或URL>")
+        print("用法: python ocr_api.py <图片文件路径>")
         sys.exit(1)
     
-    input_path = sys.argv[1]
-    ocr_api = OCRClient()
+    image_path = sys.argv[1]
     
-    # 判断输入是URL还是本地路径
-    if input_path.startswith(('http://', 'https://')):
-        result = ocr_api.recognize_vat_invoice(image_url=input_path)
-    else:
-        result = ocr_api.recognize_vat_invoice(image_path=input_path)
-    
-    print(result)
+    if not os.path.exists(image_path):
+        print(f"错误: 找不到图片文件 '{image_path}'")
+        sys.exit(1)
+        
+    try:
+        # 创建OCR客户端
+        client = OCRClient()
+        
+        # 识别发票
+        print(f"开始识别图片: {image_path}")
+        result = client.recognize_vat_invoice(image_path=image_path)
+        
+        # 格式化输出
+        print("\n===== 识别结果 =====")
+        formatted_json = json.dumps(json.loads(result), ensure_ascii=False, indent=2)
+        print(formatted_json)
+        
+        # 保存结果到JSON文件
+        output_file = f"{os.path.splitext(image_path)[0]}_result.json"
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(formatted_json)
+        print(f"\n识别结果已保存到: {output_file}")
+        
+    except Exception as e:
+        print(f"识别过程中出错: {str(e)}")
+        sys.exit(1)
 
