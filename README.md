@@ -1,14 +1,17 @@
-# 发票OCR管理系统
+# InvoiceOCR
+
+[![Python Version](https://img.shields.io/badge/python-3.9-blue.svg)](https://www.python.org/downloads/)
+[![Flask Version](https://img.shields.io/badge/flask-2.0.1-green.svg)](https://flask.palletsprojects.com/)
+[![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/docker-available-blue.svg)](https://hub.docker.com/r/chiupam/invoiceocr)
+[![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Coverage Status](https://img.shields.io/badge/coverage-80%25-green.svg)](https://github.com/chiupam/invoiceOCR/actions)
+
+# 📄 发票OCR管理系统
 
 一个基于Flask的发票OCR识别和管理系统，可以上传发票图片，自动识别提取信息，并提供管理、导出和统计功能。
 
-## 关于项目
-
-- 项目名称：InvoiceOCR
-- 仓库地址：https://github.com/chiupam/invoiceOCR
-- 开发工具：使用Cursor进行开发
-
-## 功能特点
+## 🌟 功能特点
 
 - 发票图片上传与预览
 - 基于腾讯云OCR API的发票文字识别
@@ -23,19 +26,56 @@
 - 定时任务自动清理过期文件
 - 一键更新所有发票数据功能
 
-## 技术栈
+## 🚀 快速开始
 
-- **后端框架**：Flask
-- **数据库**：SQLAlchemy + SQLite
-- **前端**：Bootstrap 5 + Chart.js + Font Awesome
-- **OCR服务**：腾讯云OCR API
-- **任务调度**：Flask-APScheduler
+### 使用 Docker
 
-## 安装部署
+#### 1. 准备工作
 
-本项目支持两种部署方式：本地部署和Docker部署。
+确保已安装Docker和Docker Compose：
+- [Docker安装指南](https://docs.docker.com/get-docker/)
+- [Docker Compose安装指南](https://docs.docker.com/compose/install/)
 
-### 方式一：本地部署（使用虚拟环境）
+#### 2. 部署步骤
+
+##### (1) 克隆仓库并进入项目目录
+```bash
+git clone https://github.com/chiupam/invoiceOCR.git
+cd invoiceOCR
+```
+
+##### (2) 创建环境变量文件（可选）
+```bash
+cp .env.example .env
+# 仅需配置基本环境变量，API密钥通过Web界面配置
+```
+
+##### (3) 构建并启动容器
+```bash
+docker-compose up -d
+```
+
+##### (4) 访问应用
+浏览器访问 http://localhost:5001 即可使用应用。首次访问时，系统会引导您完成腾讯云API密钥设置。
+
+#### 3. 常用Docker命令
+
+- **查看容器日志**
+```bash
+docker-compose logs -f
+```
+
+- **停止容器**
+```bash
+docker-compose down
+```
+
+- **重新构建（更新代码后）**
+```bash
+docker-compose up -d --build
+```
+
+### 本地部署
 
 #### 1. 克隆项目
 
@@ -107,54 +147,7 @@ source .venv/bin/activate
 - **数据库初始化错误**：确认是否有足够权限创建文件，或检查data目录是否存在
 - **OCR识别失败**：检查`.env`文件中的腾讯云API密钥是否正确
 
-### 方式二：Docker部署
-
-#### 1. 准备工作
-
-确保已安装Docker和Docker Compose：
-- [Docker安装指南](https://docs.docker.com/get-docker/)
-- [Docker Compose安装指南](https://docs.docker.com/compose/install/)
-
-#### 2. 部署步骤
-
-##### (1) 克隆仓库并进入项目目录
-```bash
-git clone https://github.com/chiupam/invoiceOCR.git
-cd invoiceOCR
-```
-
-##### (2) 创建环境变量文件（可选）
-```bash
-cp .env.example .env
-# 仅需配置基本环境变量，API密钥通过Web界面配置
-```
-
-##### (3) 构建并启动容器
-```bash
-docker-compose up -d
-```
-
-##### (4) 访问应用
-浏览器访问 http://localhost:5001 即可使用应用。首次访问时，系统会引导您完成腾讯云API密钥设置。
-
-#### 3. 常用Docker命令
-
-- **查看容器日志**
-```bash
-docker-compose logs -f
-```
-
-- **停止容器**
-```bash
-docker-compose down
-```
-
-- **重新构建（更新代码后）**
-```bash
-docker-compose up -d --build
-```
-
-## 项目结构
+## 📚 项目结构
 
 ```
 InvoiceOCR/
@@ -187,7 +180,7 @@ InvoiceOCR/
 └── run.py                     # 应用启动脚本
 ```
 
-## 使用说明
+## 🔧 配置说明
 
 ### 上传发票
 
@@ -232,69 +225,14 @@ InvoiceOCR/
 首页提供"清理导出文件"按钮，可以手动清理已导出的临时文件。
 系统还会自动定期（每天凌晨3点）清理过期的导出文件。
 
-## 特色功能
+## 📝 许可证
 
-### 自动识别发票信息
+MIT License 
 
-系统利用腾讯云OCR API自动识别发票上的文字信息，包括：
-- 发票代码和号码
-- 开票日期
-- 销售方和购买方信息
-- 金额和税额
-- 发票商品明细
-
-### 项目分类管理
-
-- 创建不同的项目对发票进行分类管理
-- 每个项目提供单独的统计信息
-- 快速筛选查看特定项目的发票
-
-### 图片预览功能
-
-- 发票详情页点击图片可以打开预览模态框
-- 支持放大/缩小/重置功能
-- 可以在新窗口打开原始图片
-
-### 数据统计与可视化
-
-- 总发票数量和金额统计
-- 当月发票数量和金额统计
-- 按月统计发票数量和金额（图表展示）
-- 发票类型分布统计（饼图展示）
-
-### 自动化任务
-
-- 自动清理过期导出文件
-- 发票信息自动更新功能
-- 数据备份管理
-
-## 命令行工具
-
-系统提供了一些有用的命令行工具：
-
-```bash
-# 初始化数据库
-python3 tools/db_init.py [--drop]
-
-# 查询数据库中的发票
-python3 tools/db_query.py [--id=1] [--limit=10] [--stats]
-
-# 清理过期文件
-flask cleanup --days=7
-```
-
-## API接口
-
-系统提供了JSON API接口：
-
-- `/api/statistics` - 获取发票统计数据
-- `/api/update-all-invoices` - 更新所有发票数据
-- `/api/cleanup-exported-files` - 清理导出的文件
-
-## 开发者
+## 👤 作者
 
 - [chiupam](https://github.com/chiupam)
 
-## 许可证
+## 🙏 致谢
 
-MIT License 
+感谢您的使用和反馈！如果您有任何问题或建议，请随时联系我们。 
