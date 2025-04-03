@@ -11,7 +11,7 @@
                     <h5 class="mb-0">编辑发票</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post">
+                    <form method="post" id="invoiceForm">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
@@ -61,15 +61,15 @@
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">金额</label>
-                                    <input type="text" class="form-control" name="total_amount" value="{{ invoice.total_amount }}">
+                                    <input type="text" class="form-control" name="total_amount" value="{{ invoice.total_amount|replace('￥', '')|replace('¥', '')|replace('元', '')|trim }}">
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">税额</label>
-                                    <input type="text" class="form-control" name="total_tax" value="{{ invoice.total_tax }}">
+                                    <input type="text" class="form-control" name="total_tax" value="{{ invoice.total_tax|replace('￥', '')|replace('¥', '')|replace('元', '')|trim }}">
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">价税合计</label>
-                                    <input type="text" class="form-control" name="amount_in_figures" value="{{ invoice.amount_in_figures }}">
+                                    <input type="text" class="form-control" name="amount_in_figures" value="{{ invoice.amount_in_figures|replace('￥', '')|replace('¥', '')|replace('元', '')|trim }}">
                                 </div>
                             </div>
                         </div>
@@ -111,13 +111,13 @@
                                                     <input type="text" class="form-control" name="items[{{ loop.index0 }}][price]" value="{{ item.price }}">
                                                 </td>
                                                 <td>
-                                                    <input type="text" class="form-control" name="items[{{ loop.index0 }}][amount]" value="{{ item.amount }}">
+                                                    <input type="text" class="form-control item-amount" name="items[{{ loop.index0 }}][amount]" value="{{ item.amount|replace('￥', '')|replace('¥', '')|replace('元', '')|trim }}">
                                                 </td>
                                                 <td>
-                                                    <input type="text" class="form-control" name="items[{{ loop.index0 }}][tax_rate]" value="{{ item.tax_rate }}">
+                                                    <input type="text" class="form-control item-tax-rate" name="items[{{ loop.index0 }}][tax_rate]" value="{{ item.tax_rate|replace('%', '')|trim }}">
                                                 </td>
                                                 <td>
-                                                    <input type="text" class="form-control" name="items[{{ loop.index0 }}][tax]" value="{{ item.tax }}">
+                                                    <input type="text" class="form-control item-tax" name="items[{{ loop.index0 }}][tax]" value="{{ item.tax|replace('￥', '')|replace('¥', '')|replace('元', '')|trim }}">
                                                 </td>
                                                 <td>
                                                     <button type="button" class="btn btn-danger btn-sm remove-item">
@@ -169,13 +169,13 @@
             <input type="text" class="form-control" name="items[INDEX][price]">
         </td>
         <td>
-            <input type="text" class="form-control" name="items[INDEX][amount]">
+            <input type="text" class="form-control item-amount" name="items[INDEX][amount]">
         </td>
         <td>
-            <input type="text" class="form-control" name="items[INDEX][tax_rate]">
+            <input type="text" class="form-control item-tax-rate" name="items[INDEX][tax_rate]">
         </td>
         <td>
-            <input type="text" class="form-control" name="items[INDEX][tax]">
+            <input type="text" class="form-control item-tax" name="items[INDEX][tax]">
         </td>
         <td>
             <button type="button" class="btn btn-danger btn-sm remove-item">

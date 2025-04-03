@@ -94,19 +94,30 @@ function calculateRowValues(row) {
 }
 
 // 表单提交前验证
-document.getElementById('invoiceForm').addEventListener('submit', function(e) {
-    // 更新发票总金额和总税额
-    let totalAmount = 0;
-    let totalTax = 0;
-    
-    document.querySelectorAll('.item-amount').forEach(function(input) {
-        totalAmount += parseFloat(input.value) || 0;
+const invoiceForm = document.getElementById('invoiceForm');
+if (invoiceForm) {
+    invoiceForm.addEventListener('submit', function(e) {
+        // 更新发票总金额和总税额
+        let totalAmount = 0;
+        let totalTax = 0;
+        
+        document.querySelectorAll('.item-amount').forEach(function(input) {
+            totalAmount += parseFloat(input.value) || 0;
+        });
+        
+        document.querySelectorAll('.item-tax').forEach(function(input) {
+            totalTax += parseFloat(input.value) || 0;
+        });
+        
+        const totalAmountInput = document.getElementById('total_amount');
+        const taxAmountInput = document.getElementById('tax_amount');
+        
+        if (totalAmountInput) {
+            totalAmountInput.value = totalAmount.toFixed(2);
+        }
+        
+        if (taxAmountInput) {
+            taxAmountInput.value = totalTax.toFixed(2);
+        }
     });
-    
-    document.querySelectorAll('.item-tax').forEach(function(input) {
-        totalTax += parseFloat(input.value) || 0;
-    });
-    
-    document.getElementById('total_amount').value = totalAmount.toFixed(2);
-    document.getElementById('tax_amount').value = totalTax.toFixed(2);
-}); 
+} 

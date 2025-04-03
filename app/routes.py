@@ -11,7 +11,7 @@ from decimal import Decimal
 import re
 
 from .models import db, Invoice, InvoiceItem, Project, Settings
-from .utils import save_uploaded_file, process_invoice_image, get_invoice_statistics, export_invoice, delete_invoice, export_project, update_invoice_from_json, update_all_invoices_from_json
+from .utils import save_uploaded_file, process_invoice_image, get_invoice_statistics, export_invoice, delete_invoice, export_project
 
 # 创建蓝图
 main = Blueprint('main', __name__)
@@ -283,7 +283,7 @@ def upload():
             if project_id == '':
                 project_id = None
             
-            # 处理发票图片
+            # 处理发票文件
             result = process_invoice_image(temp_file_path, project_id=project_id)
             
             if not result.get('success'):
@@ -343,10 +343,6 @@ def invoice_detail(invoice_id):
     # 查询发票数据
     invoice = Invoice.query.get_or_404(invoice_id)
     
-    # 尝试从JSON数据更新发票信息
-    if invoice.json_data and (not invoice.seller_tax_id or not invoice.total_tax):
-        update_invoice_from_json(invoice_id)
-    
     # 查询发票商品项目
     items = InvoiceItem.query.filter_by(invoice_id=invoice_id).all()
     
@@ -403,11 +399,46 @@ def invoice_edit(invoice_id):
         project_id = request.form.get('project_id', type=int)
         invoice.project_id = project_id
         
-        # 保存到数据库
-        db.session.commit()
+        # 处理发票明细项
+        # 首先删除现有的明细项
+        InvoiceItem.query.filter_by(invoice_id=invoice_id).delete()
         
-        flash('发票信息更新成功')
-        return redirect(url_for('main.invoice_detail', invoice_id=invoice.id))
+        # 从表单中获取明细项数据
+        form_data = request.form.to_dict(flat=False)
+        items_count = 0
+        
+        # 计算有多少个明细项
+        for key in form_data:
+            if key.startswith('items[') and key.endswith('][name]'):
+                items_count = max(items_count, int(key.split('[')[1].split(']')[0]) + 1)
+        
+        # 添加新的明细项
+        for i in range(items_count):
+            # 检查该索引的明细是否存在
+            if f'items[{i}][name]' in form_data and form_data[f'items[{i}][name]'][0].strip():
+                item = InvoiceItem(
+                    invoice_id=invoice_id,
+                    name=form_data.get(f'items[{i}][name]', [''])[0],
+                    specification=form_data.get(f'items[{i}][specification]', [''])[0],
+                    unit=form_data.get(f'items[{i}][unit]', [''])[0],
+                    quantity=form_data.get(f'items[{i}][quantity]', [''])[0],
+                    price=form_data.get(f'items[{i}][price]', [''])[0],
+                    amount=form_data.get(f'items[{i}][amount]', [''])[0],
+                    tax_rate=form_data.get(f'items[{i}][tax_rate]', [''])[0],
+                    tax=form_data.get(f'items[{i}][tax]', [''])[0]
+                )
+                db.session.add(item)
+                current_app.logger.info(f"为发票ID={invoice_id}添加了明细项：{item.name}")
+        
+        # 保存到数据库
+        try:
+            db.session.commit()
+            flash('发票信息更新成功')
+            return redirect(url_for('main.invoice_detail', invoice_id=invoice.id))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"更新发票时出错: {str(e)}")
+            flash(f'保存失败: {str(e)}', 'danger')
     
     return render_template('invoice_edit.html', 
                           invoice=invoice, 
@@ -699,29 +730,23 @@ def project_export(project_id):
         return redirect(url_for('main.project_detail', project_id=project_id))
 
 @main.route('/api/update-all-invoices', methods=['POST'])
-def update_all_invoices():
-    """从JSON数据更新所有发票记录"""
+def api_update_all_invoices():
+    """从JSON数据更新所有发票（API接口）"""
     if request.method == 'POST':
-        updated_count = update_all_invoices_from_json()
+        from app.utils import update_all_invoices_from_json
+        
+        result = update_all_invoices_from_json()
+        if result:
+            return jsonify({
+                'success': True,
+                'message': f'成功更新了 {result} 条发票记录',
+                'updated_count': result
+            })
         return jsonify({
-            'success': True,
-            'message': f'成功更新了 {updated_count} 条发票记录',
-            'updated_count': updated_count
+            'success': False,
+            'message': '没有需要更新的发票记录'
         })
     return jsonify({'success': False, 'message': '请使用POST方法访问此接口'})
-
-@main.route('/invoice/<int:invoice_id>/update-from-json')
-def update_invoice_from_json(invoice_id):
-    """从JSON数据更新单个发票记录"""
-    from app.utils import update_invoice_from_json as update_func
-    result = update_func(invoice_id)
-    
-    if result:
-        flash('成功从JSON数据更新了发票信息', 'success')
-    else:
-        flash('未能从JSON数据更新发票信息', 'warning')
-        
-    return redirect(url_for('main.invoice_detail', invoice_id=invoice_id))
 
 @main.route('/api/cleanup-exported-files', methods=['POST'])
 def cleanup_files():
@@ -810,7 +835,7 @@ def quick_upload():
         if project_id == '':
             project_id = None
         
-        # 处理发票图片
+        # 处理发票文件
         result = process_invoice_image(saved_path, project_id=project_id)
         
         if result.get('success'):
@@ -837,4 +862,18 @@ def quick_upload():
             
     except Exception as e:
         flash(f'处理过程中出错: {str(e)}', 'danger')
-        return redirect(url_for('main.index')) 
+        return redirect(url_for('main.index'))
+
+# 注释掉从JSON更新单个发票的路由，让这个功能对普通用户不可用
+# @main.route('/invoice/<int:invoice_id>/update-from-json')
+# def update_invoice_from_json(invoice_id):
+#     """从JSON数据更新单个发票记录"""
+#     from app.utils import update_invoice_from_json as update_func
+#     result = update_func(invoice_id)
+#     
+#     if result:
+#         flash('成功从JSON数据更新了发票信息', 'success')
+#     else:
+#         flash('未能从JSON数据更新发票信息', 'warning')
+#         
+#     return redirect(url_for('main.invoice_detail', invoice_id=invoice_id)) 

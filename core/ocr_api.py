@@ -84,9 +84,9 @@ class OCRClient:
         识别增值税发票
         
         参数:
-            image_path: 图片本地路径
-            image_url: 图片URL
-            image_base64: 图片Base64编码
+            image_path: 图片/PDF本地路径
+            image_url: 图片/PDF的URL
+            image_base64: 图片/PDF的Base64编码
             
         返回:
             API返回的JSON结果
@@ -96,6 +96,9 @@ class OCRClient:
         
         # 准备请求数据
         request_data = {}
+        # 启用PDF识别，指定识别第一页
+        request_data["IsPdf"] = True
+        request_data["PdfPageNumber"] = 1
         
         # 获取图片数据
         if image_path:

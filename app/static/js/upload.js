@@ -56,7 +56,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const file = files[i];
             
             // 检查文件类型
-            if (!file.type.match('image.*')) {
+            const fileType = file.type;
+            if (!fileType.match('image.*') && fileType !== 'application/pdf') {
                 continue;
             }
             
@@ -95,38 +96,65 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 为每个文件创建预览
         selectedFiles.forEach((file, index) => {
-            const reader = new FileReader();
+            const col = document.createElement('div');
+            col.className = 'col-md-4 col-sm-6 col-6 preview-item';
             
-            reader.onload = function(e) {
-                const col = document.createElement('div');
-                col.className = 'col-md-4 col-sm-6 col-6 preview-item';
+            // 不同文件类型的预览处理
+            if (file.type === 'application/pdf') {
+                // PDF文件预览 - 显示PDF图标
+                col.innerHTML = `
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-file-pdf fa-3x text-danger"></i>
+                            <div class="file-name mt-2">${file.name}</div>
+                        </div>
+                    </div>
+                    <span class="remove-file"><i class="fas fa-times"></i></span>
+                `;
+            } else {
+                // 图片文件预览
+                const reader = new FileReader();
                 
-                const img = document.createElement('img');
-                img.src = e.target.result;
-                img.className = 'img-fluid';
-                img.alt = file.name;
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'img-fluid';
+                    img.alt = file.name;
+                    
+                    // 添加图片加载错误处理
+                    img.onerror = function() {
+                        // 直接替换为错误提示，而不是加载其他图片
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'alert alert-danger p-2 text-center';
+                        errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 预览失败';
+                        img.replaceWith(errorDiv);
+                    };
+                    
+                    const removeBtn = document.createElement('span');
+                    removeBtn.className = 'remove-file';
+                    removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+                    
+                    const fileName = document.createElement('div');
+                    fileName.className = 'file-name';
+                    fileName.textContent = file.name;
+                    
+                    col.appendChild(img);
+                    col.appendChild(removeBtn);
+                    col.appendChild(fileName);
+                };
                 
-                const removeBtn = document.createElement('span');
-                removeBtn.className = 'remove-file';
-                removeBtn.innerHTML = '<i class="fas fa-times"></i>';
-                removeBtn.addEventListener('click', function() {
-                    // 从选择的文件中移除
-                    selectedFiles.splice(index, 1);
-                    // 更新预览
-                    updatePreview();
-                });
-                
-                const fileName = document.createElement('div');
-                fileName.className = 'file-name';
-                fileName.textContent = file.name;
-                
-                col.appendChild(img);
-                col.appendChild(removeBtn);
-                col.appendChild(fileName);
-                previewList.appendChild(col);
-            };
+                reader.readAsDataURL(file);
+            }
             
-            reader.readAsDataURL(file);
+            // 添加删除按钮事件处理
+            col.querySelector('.remove-file')?.addEventListener('click', function() {
+                // 从选择的文件中移除
+                selectedFiles.splice(index, 1);
+                // 更新预览
+                updatePreview();
+            });
+            
+            previewList.appendChild(col);
         });
     }
     

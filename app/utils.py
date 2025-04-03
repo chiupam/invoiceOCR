@@ -54,10 +54,10 @@ def save_uploaded_file(file):
 
 def process_invoice_image(image_path, project_id=None):
     """
-    处理发票图片，识别并保存发票数据
+    处理发票文件，识别并保存发票数据
     
     参数:
-        image_path: 图片在服务器上的完整路径
+        image_path: 文件在服务器上的完整路径
         project_id: 项目ID，默认为None
         
     返回:
@@ -68,7 +68,7 @@ def process_invoice_image(image_path, project_id=None):
     
     try:
         # 记录开始处理的文件
-        current_app.logger.info(f"开始处理图片: {image_path}")
+        current_app.logger.info(f"开始处理文件: {image_path}")
         
         # 调用OCR API识别发票
         response_json = ocr_api.recognize_vat_invoice(image_path=image_path)
@@ -114,21 +114,21 @@ def process_invoice_image(image_path, project_id=None):
         
         # 检查是否成功识别出发票代码和号码
         if not invoice_code or not invoice_number:
-            current_app.logger.warning(f"识别失败: 图片 {image_path} 未能识别出发票代码或号码")
-            # 保存失败图片的副本用于后续分析
+            current_app.logger.warning(f"识别失败: 文件 {image_path} 未能识别出发票代码或号码")
+            # 保存失败文件的副本用于后续分析
             basename = os.path.basename(image_path)
             if not basename.startswith('failed_'):
                 failed_copy = os.path.join(os.path.dirname(image_path), f"failed_{basename}")
                 try:
                     import shutil
                     shutil.copy2(image_path, failed_copy)
-                    current_app.logger.info(f"已保存识别失败图片副本: {failed_copy}")
+                    current_app.logger.info(f"已保存识别失败文件副本: {failed_copy}")
                 except Exception as e:
-                    current_app.logger.error(f"保存识别失败图片副本时出错: {str(e)}")
+                    current_app.logger.error(f"保存识别失败文件副本时出错: {str(e)}")
             
             return {
                 'success': False,
-                'message': '未能识别出发票代码或号码，请检查图片清晰度或图片内容是否为有效发票'
+                'message': '未能识别出发票代码或号码，请检查文件清晰度或文件内容是否为有效发票'
             }
         
         if invoice_code and invoice_number:
@@ -157,16 +157,45 @@ def process_invoice_image(image_path, project_id=None):
             # 确保文件名不带temp_前缀
             if filename.startswith('temp_'):
                 filename = filename[5:]  # 移除temp_前缀
-                
-            new_filename = f"{invoice_code}{invoice_number}{os.path.splitext(filename)[1]}"
+            
+            # 获取原始文件的扩展名，确保保留
+            file_ext = os.path.splitext(filename)[1].lower()
+            
+            # 如果没有扩展名，根据文件内容推断
+            if not file_ext:
+                # 检查是否是PDF文件
+                try:
+                    with open(image_path, 'rb') as f:
+                        header = f.read(4)
+                        if header == b'%PDF':
+                            file_ext = '.pdf'
+                        else:
+                            file_ext = '.jpg'  # 默认为jpg
+                except Exception:
+                    file_ext = '.jpg'  # 失败时默认为jpg
+            
+            new_filename = f"{invoice_code}{invoice_number}{file_ext}"
             current_app.logger.info(f"生成新文件名: {new_filename}")
         else:
             # 如果没有识别出代码和号码，使用原文件名但移除temp_前缀
             basename = os.path.basename(image_path)
+            file_ext = os.path.splitext(basename)[1].lower()
+            
             if basename.startswith('temp_'):
                 new_filename = basename[5:] # 移除temp_前缀
             else:
                 new_filename = basename
+                
+            # 确保有正确的文件扩展名
+            if not file_ext:
+                try:
+                    with open(image_path, 'rb') as f:
+                        header = f.read(4)
+                        if header == b'%PDF':
+                            new_filename = f"{os.path.splitext(new_filename)[0]}.pdf"
+                except Exception:
+                    pass
+                
             current_app.logger.warning(f"使用普通文件名: {new_filename}")
         
         # 最终文件路径
@@ -232,21 +261,21 @@ def process_invoice_image(image_path, project_id=None):
         }
         
     except Exception as e:
-        current_app.logger.error(f"处理发票图片时出错: {str(e)}")
-        # 保存失败图片的副本用于后续分析
+        current_app.logger.error(f"处理发票文件时出错: {str(e)}")
+        # 保存失败文件的副本用于后续分析
         try:
             basename = os.path.basename(image_path)
             if not basename.startswith('failed_'):
                 failed_copy = os.path.join(os.path.dirname(image_path), f"failed_{basename}")
                 import shutil
                 shutil.copy2(image_path, failed_copy)
-                current_app.logger.info(f"已保存识别失败图片副本: {failed_copy}")
+                current_app.logger.info(f"已保存识别失败文件副本: {failed_copy}")
         except Exception as copy_error:
-            current_app.logger.error(f"保存识别失败图片副本时出错: {str(copy_error)}")
+            current_app.logger.error(f"保存识别失败文件副本时出错: {str(copy_error)}")
         
         return {
             'success': False,
-            'message': f'处理发票时出错: {str(e)}'
+            'message': f'处理发票文件时出错: {str(e)}'
         }
 
 

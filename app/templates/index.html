@@ -48,9 +48,6 @@
                 <i class="fas fa-folder me-1"></i> 项目详情
             </a>
             {% endif %}
-            <button id="updateAllInvoicesBtn" class="btn btn-warning me-2">
-                <i class="fas fa-sync me-1"></i> 更新所有发票
-            </button>
             <button id="cleanupFilesBtn" class="btn btn-secondary me-2">
                 <i class="fas fa-trash me-1"></i> 清理导出文件
             </button>
@@ -189,7 +186,18 @@
                                 <tr data-toggle="collapse" data-target="#items-{{ invoice.id }}" class="accordion-toggle invoice-row" role="button" aria-expanded="false">
                                     <td>
                                         {% if invoice.image_path %}
-                                        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" class="invoice-thumbnail lazy-load" alt="发票图片">
+                                            {% if invoice.image_path.lower().endswith('.pdf') %}
+                                            <!-- PDF文件显示图标 -->
+                                            <div class="pdf-thumbnail text-center">
+                                                <i class="fas fa-file-pdf text-danger" style="font-size: 2rem;"></i>
+                                            </div>
+                                            {% else %}
+                                            <!-- 图片文件显示缩略图 -->
+                                            <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
+                                                 data-src="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" 
+                                                 class="invoice-thumbnail lazy-load" 
+                                                 alt="发票图片">
+                                            {% endif %}
                                         {% else %}
                                         <div class="no-image">无图片</div>
                                         {% endif %}
@@ -445,44 +453,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // 处理更新所有发票按钮
-        const updateAllBtn = document.getElementById('updateAllInvoicesBtn');
-        if (updateAllBtn) {
-            updateAllBtn.addEventListener('click', function() {
-                if (confirm('确定要从JSON数据更新所有发票吗？此操作可能需要一些时间。')) {
-                    // 显示加载中
-                    updateAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> 更新中...';
-                    updateAllBtn.disabled = true;
-                    
-                    // 发起API请求
-                    fetch('/api/update-all-invoices', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            alert(data.message);
-                            // 刷新页面
-                            window.location.reload();
-                        } else {
-                            alert('更新失败: ' + data.message);
-                            updateAllBtn.innerHTML = '<i class="fas fa-sync me-1"></i> 更新所有发票';
-                            updateAllBtn.disabled = false;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('更新失败，请查看控制台了解详情');
-                        updateAllBtn.innerHTML = '<i class="fas fa-sync me-1"></i> 更新所有发票';
-                        updateAllBtn.disabled = false;
-                    });
-                }
-            });
-        }
-        
         // 处理清理导出文件按钮
         const cleanupBtn = document.getElementById('cleanupFilesBtn');
         if (cleanupBtn) {
@@ -520,4 +490,42 @@
         }
     });
 </script>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .invoice-thumbnail {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+    }
+    
+    .pdf-thumbnail {
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        background-color: #f8f9fa;
+    }
+    
+    .no-image {
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        background-color: #f8f9fa;
+        color: #6c757d;
+        font-size: 12px;
+    }
+    
+    /* 其他已有的样式... */
+</style>
 {% endblock %} 

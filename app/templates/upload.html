@@ -31,11 +31,11 @@
                                             <div class="icon-container">
                                                 <i class="fas fa-cloud-upload-alt fa-4x text-primary"></i>
                                             </div>
-                                            <p class="mt-3">拖拽发票图片到此处，或点击选择文件</p>
-                                            <p class="text-muted small">支持 JPG, PNG, GIF 格式</p>
+                                            <p class="mt-3">拖拽发票文件到此处，或点击选择文件</p>
+                                            <p class="text-muted small">支持 JPG, PNG, PDF 格式</p>
                                             <p class="text-primary">可选择多个文件进行批量上传</p>
                                         </div>
-                                        <input type="file" name="invoice_file" id="fileInput" class="d-none" accept="image/*" multiple>
+                                        <input type="file" name="invoice_file" id="fileInput" class="d-none" accept=".jpg,.jpeg,.png,.pdf" multiple>
                                     </div>
                                     
                                     <div class="mb-3 preview-container d-none" id="previewContainer">
@@ -64,9 +64,10 @@
                                 <div class="card-body">
                                     <h5 class="card-title">上传说明</h5>
                                     <ul class="mb-0">
-                                        <li>系统支持上传JPG、PNG、GIF格式的发票图片</li>
-                                        <li>支持批量上传多个发票图片，提高工作效率</li>
-                                        <li>请确保图片清晰，发票内容完整可见</li>
+                                        <li>系统支持上传JPG、PNG、PDF格式的发票文件</li>
+                                        <li>PDF文件将自动识别第一页内容</li>
+                                        <li>支持批量上传多个发票文件，提高工作效率</li>
+                                        <li>请确保文件清晰，发票内容完整可见</li>
                                         <li>上传后系统会自动识别发票内容并保存到数据库</li>
                                         <li>批量处理可能需要较长时间，请耐心等待</li>
                                         <li>如果识别结果不准确，可以在后续页面手动编辑</li>
