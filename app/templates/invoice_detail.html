@@ -38,30 +38,38 @@
                     <div class="row">
                         <div class="col-md-5">
                             <div class="text-center mb-4">
-                                {% if invoice.image_path.lower().endswith('.pdf') %}
-                                <!-- PDF文件显示 -->
-                                <div class="pdf-container">
-                                    <embed src="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" 
-                                           type="application/pdf" 
-                                           class="img-fluid"
-                                           style="min-height: 500px; width: 100%;"
-                                           data-bs-toggle="modal" 
-                                           data-bs-target="#pdfPreviewModal">
-                                    <div class="mt-2">
-                                        <a href="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" 
-                                           class="btn btn-sm btn-outline-primary" 
-                                           target="_blank">
-                                            <i class="fas fa-external-link-alt me-1"></i> 在新窗口打开PDF
-                                        </a>
+                                {% if invoice.image_path %}
+                                    {% if invoice.image_path.lower().endswith('.pdf') %}
+                                    <!-- PDF文件显示 -->
+                                    <div class="pdf-container">
+                                        <embed src="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" 
+                                               type="application/pdf" 
+                                               class="img-fluid"
+                                               style="min-height: 500px; width: 100%;"
+                                               data-bs-toggle="modal" 
+                                               data-bs-target="#pdfPreviewModal">
+                                        <div class="mt-2">
+                                            <a href="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" 
+                                               class="btn btn-sm btn-outline-primary" 
+                                               target="_blank">
+                                                <i class="fas fa-external-link-alt me-1"></i> 在新窗口打开PDF
+                                            </a>
+                                        </div>
                                     </div>
-                                </div>
+                                    {% else %}
+                                    <!-- 图片显示 -->
+                                    <img src="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" 
+                                         class="img-fluid img-thumbnail invoice-image cursor-pointer" 
+                                         alt="发票图片" 
+                                         data-bs-toggle="modal" 
+                                         data-bs-target="#imagePreviewModal">
+                                    {% endif %}
                                 {% else %}
-                                <!-- 图片显示 -->
-                                <img src="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" 
-                                     class="img-fluid img-thumbnail invoice-image cursor-pointer" 
-                                     alt="发票图片" 
-                                     data-bs-toggle="modal" 
-                                     data-bs-target="#imagePreviewModal">
+                                <!-- 无图片时显示占位图 -->
+                                <div class="text-center py-4 px-3 border rounded bg-light">
+                                    <i class="fas fa-file-invoice text-muted" style="font-size: 5rem;"></i>
+                                    <p class="mt-3 mb-0 text-muted">手动创建的发票，无图片</p>
+                                </div>
                                 {% endif %}
                             </div>
                         </div>
@@ -177,7 +185,7 @@
                     </div>
                 </div>
                 <div class="card-footer text-end">
-                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
+                    <a href="{{ back_url }}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left me-1"></i> 返回列表
                     </a>
                 </div>
@@ -228,6 +236,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center">
+                {% if invoice.image_path %}
                 <div class="loading-spinner d-none">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">加载中...</span>
@@ -240,10 +249,18 @@
                          alt="发票大图"
                          id="previewImage">
                 </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-file-invoice text-muted" style="font-size: 8rem;"></i>
+                    <p class="mt-3 mb-0 text-muted">此发票没有图片</p>
+                </div>
+                {% endif %}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                {% if invoice.image_path %}
                 <a href="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" class="btn btn-primary" target="_blank">在新窗口打开</a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -258,14 +275,23 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0">
+                {% if invoice.image_path %}
                 <embed src="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" 
                        type="application/pdf" 
                        width="100%" 
                        height="600px">
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-file-pdf text-muted" style="font-size: 8rem;"></i>
+                    <p class="mt-3 mb-0 text-muted">此发票没有PDF文件</p>
+                </div>
+                {% endif %}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                {% if invoice.image_path %}
                 <a href="{{ url_for('static', filename='uploads/' + invoice.image_path) }}" class="btn btn-primary" target="_blank">在新窗口打开</a>
+                {% endif %}
             </div>
         </div>
     </div>

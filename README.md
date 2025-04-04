@@ -14,6 +14,7 @@
 ## 🌟 功能特点
 
 - 发票图片和PDF文件上传与预览
+- 支持手动创建发票，无需上传图片
 - 基于腾讯云OCR API的发票文字识别
 - 支持直接识别PDF发票第一页
 - 发票数据结构化处理与存储
@@ -28,11 +29,12 @@
 
 ## 🔄 最近更新
 
-- 增加了对PDF文件的支持，可直接上传PDF格式发票文件
-- 优化了发票编辑功能，改进了金额字段的处理
-- 修复了发票详情页面的图片加载问题
-- 简化了用户界面，移除了不必要的功能按钮
-- 改进了错误处理，提升了应用稳定性
+最新版本 v1.3 (2024.04.04)
+- 添加手动创建发票功能，无需上传图片即可录入信息
+- 修复未分类发票统计显示问题
+- 添加对image_path为None的检查，避免模板渲染错误
+
+查看完整的更新历史请参考 [CHANGELOG.md](CHANGELOG.md)
 
 ## 🚀 快速开始
 
@@ -82,6 +84,40 @@ docker-compose down
 ```bash
 docker-compose up -d --build
 ```
+
+#### 4. 使用预构建的Docker镜像
+
+我们提供了多个镜像源以适应不同地区用户的需求：
+
+##### Docker Hub (推荐)
+
+```bash
+# 拉取最新版本
+docker pull chiupam/invoiceocr:latest
+
+# 拉取特定版本
+docker pull chiupam/invoiceocr:v1.3
+
+# 运行容器
+docker run -d -p 5001:5001 -v $(pwd)/data:/app/data --name invoice_ocr chiupam/invoiceocr:latest
+```
+
+##### GitHub Container Registry
+
+```bash
+# 拉取最新版本
+docker pull ghcr.io/chiupam/invoiceocr:latest
+
+# 拉取特定版本
+docker pull ghcr.io/chiupam/invoiceocr:v1.3
+
+# 运行容器
+docker run -d -p 5001:5001 -v $(pwd)/data:/app/data --name invoice_ocr ghcr.io/chiupam/invoiceocr:latest
+```
+
+##### 数据持久化
+
+上面的命令使用了卷挂载 `-v $(pwd)/data:/app/data` 来保证数据在容器重启后不会丢失。您可以根据需要修改本地路径。
 
 ### 本地部署
 
@@ -159,33 +195,65 @@ source .venv/bin/activate
 
 ```
 InvoiceOCR/
-├── app/                        # Web应用主目录
-│   ├── static/                 # 静态资源
-│   │   ├── css/                # CSS样式
-│   │   ├── js/                 # JavaScript文件
-│   │   └── uploads/            # 上传的发票图片存储目录
-│   ├── templates/              # HTML模板
-│   ├── __init__.py            # 应用初始化
-│   ├── config.py              # 应用配置
-│   ├── models.py              # 数据模型
-│   ├── routes.py              # 路由定义
-│   └── utils.py               # 辅助函数
-├── core/                       # 核心功能模块
-│   ├── __init__.py            # 模块初始化
-│   ├── ocr_api.py             # OCR API调用功能
-│   ├── invoice_formatter.py   # 发票数据格式化
-│   └── invoice_export.py      # 发票数据导出功能
-├── data/                       # 数据存储目录
-│   ├── invoices.db            # SQLite数据库文件
-│   └── output/                # 导出文件存储目录
-├── tools/                      # 工具脚本目录
-│   ├── db_init.py             # 数据库初始化脚本
-│   └── db_query.py            # 数据库查询工具
-├── tests/                      # 测试目录
-├── .gitignore                 # Git忽略文件
-├── README.md                  # 项目说明文档
-├── requirements.txt           # 项目依赖
-└── run.py                     # 应用启动脚本
+├── app/                          # Web应用主目录
+│   ├── static/                   # 静态资源
+│   │   ├── css/                  # CSS样式
+│   │   │   └── style.css         # 全局样式表
+│   │   ├── js/                   # JavaScript文件
+│   │   │   ├── edit_invoice.js   # 发票编辑页面脚本
+│   │   │   ├── index.js          # 首页脚本
+│   │   │   ├── main.js           # 主要公共脚本
+│   │   │   └── upload.js         # 上传页面脚本
+│   │   └── uploads/              # 上传的发票图片存储目录
+│   ├── templates/                # HTML模板
+│   │   ├── errors/               # 错误页面模板
+│   │   │   ├── 404.html          # 404错误页面
+│   │   │   └── 500.html          # 500错误页面
+│   │   ├── base.html             # 基础布局模板
+│   │   ├── index.html            # 首页模板
+│   │   ├── invoice_create.html   # 发票创建页面
+│   │   ├── invoice_detail.html   # 发票详情页面
+│   │   ├── invoice_edit.html     # 发票编辑页面
+│   │   ├── project_detail.html   # 项目详情页面
+│   │   ├── project_form.html     # 项目编辑表单
+│   │   ├── project_list.html     # 项目列表页面
+│   │   ├── settings.html         # 设置页面
+│   │   └── upload.html           # 上传页面
+│   ├── __init__.py               # 应用初始化
+│   ├── config.py                 # 应用配置
+│   ├── models.py                 # 数据模型
+│   ├── routes.py                 # 路由定义
+│   └── utils.py                  # 辅助函数
+├── core/                         # 核心功能模块
+│   ├── __init__.py               # 模块初始化
+│   ├── invoice_export.py         # 发票数据导出功能
+│   ├── invoice_formatter.py      # 发票数据格式化
+│   ├── ocr_api.py                # OCR API调用功能
+│   ├── ocr_process.py            # OCR结果处理
+│   └── README.md                 # 核心模块说明文档
+├── data/                         # 数据存储目录
+│   ├── invoices.db               # SQLite数据库文件
+│   ├── output/                   # 导出文件存储目录
+│   └── README.md                 # 数据目录说明文档
+├── tools/                        # 工具脚本目录
+│   ├── clean_temp_files.py       # 临时文件清理工具
+│   ├── db_backup.py              # 数据库备份工具
+│   ├── db_init.py                # 数据库初始化脚本
+│   ├── db_query.py               # 数据库查询工具
+│   ├── generate_test_data.py     # 测试数据生成工具
+│   └── README.md                 # 工具脚本说明文档
+├── test/                         # 测试目录
+│   ├── fixtures/                 # 测试数据目录
+│   │   └── invoices/             # 测试发票图片
+│   └── README.md                 # 测试说明文档
+├── .env.example                  # 环境变量示例文件
+├── .gitignore                    # Git忽略文件
+├── docker-compose.yml            # Docker Compose配置
+├── Dockerfile                    # Docker构建文件
+├── LICENSE                       # 许可证文件
+├── README.md                     # 项目说明文档
+├── requirements.txt              # 项目依赖
+└── run.py                        # 应用启动脚本
 ```
 
 ## 🔧 配置说明
@@ -229,6 +297,42 @@ InvoiceOCR/
 
 首页提供"清理导出文件"按钮，可以手动清理已导出的临时文件。
 系统还会自动定期（每天凌晨3点）清理过期的导出文件。
+
+## 🛠️ 开发者指南
+
+### GitHub Actions 配置
+
+本项目使用GitHub Actions自动构建和发布Docker镜像。如果您fork了本项目并希望启用自动构建，需要配置以下GitHub Secrets:
+
+#### 1. 访问GitHub仓库设置
+
+- 前往您的GitHub仓库
+- 点击顶部的"Settings"选项卡
+- 在左侧菜单中找到"Security"部分下的"Secrets and variables"
+- 选择"Actions"
+
+#### 2. 添加必要的Secrets
+
+需要添加以下Secret以启用Docker Hub发布:
+
+| Secret名称 | 说明 | 获取方式 |
+|----------|------|---------|
+| `DOCKERHUB_USERNAME` | Docker Hub用户名 | 您的Docker Hub账号用户名 |
+| `DOCKERHUB_TOKEN` | Docker Hub访问令牌 | 在Docker Hub → Account Settings → Security中创建 |
+
+#### 3. 获取Docker Hub访问令牌
+
+1. 登录[Docker Hub](https://hub.docker.com/)
+2. 点击右上角头像 → Account Settings → Security
+3. 点击"New Access Token"按钮
+4. 输入描述（如"GitHub Actions"）
+5. 选择适当的权限（至少需要"Read & Write"权限）
+6. 点击"Generate"生成令牌
+7. **重要**: 立即复制生成的令牌，它只会显示一次
+
+#### 4. 验证配置
+
+配置完成后，每次发布新Release或手动触发工作流时，将自动构建并推送Docker镜像到您的Docker Hub账号。
 
 ## 📝 许可证
 

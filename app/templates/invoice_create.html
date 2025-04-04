@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+
+{% block title %}新建发票 - 发票OCR管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">新建发票</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="invoiceForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="invoice_type" class="form-label">发票类型</label>
+                                    <select class="form-select" id="invoice_type" name="invoice_type">
+                                        <option value="普通发票">普通发票</option>
+                                        <option value="增值税专用发票">增值税专用发票</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="project_id" class="form-label">所属项目</label>
+                                    <select class="form-select" id="project_id" name="project_id">
+                                        <option value="">-- 未分类 --</option>
+                                        {% for project in projects %}
+                                            <option value="{{ project.id }}">
+                                                {{ project.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="invoice_code" class="form-label">发票代码</label>
+                                    <input type="text" class="form-control" id="invoice_code" name="invoice_code" value="">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="invoice_number" class="form-label">发票号码</label>
+                                    <input type="text" class="form-control" id="invoice_number" name="invoice_number" value="">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="invoice_date" class="form-label">开票日期</label>
+                                    <input type="date" class="form-control" id="invoice_date" name="invoice_date" value="{{ today }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">销售方</label>
+                                    <input type="text" class="form-control" name="seller_name" value="">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">销售方税号</label>
+                                    <input type="text" class="form-control" name="seller_tax_id" value="">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">购买方</label>
+                                    <input type="text" class="form-control" name="buyer_name" value="">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">购买方税号</label>
+                                    <input type="text" class="form-control" name="buyer_tax_id" value="">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">金额</label>
+                                    <input type="text" class="form-control" name="total_amount" value="">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">税额</label>
+                                    <input type="text" class="form-control" name="total_tax" value="">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">价税合计</label>
+                                    <input type="text" class="form-control" name="amount_in_figures" value="">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-12">
+                                <h5>发票明细项</h5>
+                                <div class="table-responsive mt-3">
+                                    <table class="table table-bordered" id="itemsTable">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>名称</th>
+                                                <th>规格型号</th>
+                                                <th>单位</th>
+                                                <th>数量</th>
+                                                <th>单价</th>
+                                                <th>金额</th>
+                                                <th>税率</th>
+                                                <th>税额</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- 默认添加一行 -->
+                                            <tr>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm" name="items[0][name]">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm" name="items[0][specification]">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm" name="items[0][unit]">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm" name="items[0][quantity]">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm" name="items[0][price]">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm item-amount" name="items[0][amount]">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm item-tax-rate" name="items[0][tax_rate]">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control form-control-sm item-tax" name="items[0][tax]">
+                                                </td>
+                                                <td>
+                                                    <button type="button" class="btn btn-danger btn-sm remove-item">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    <button type="button" class="btn btn-success btn-sm mt-2" id="addItemBtn">
+                                        <i class="fas fa-plus me-1"></i> 添加明细项
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 d-flex justify-content-between">
+                            <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> 返回列表
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> 保存发票
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 行项目模板 -->
+<template id="itemRowTemplate">
+    <tr>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="items[INDEX][name]">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="items[INDEX][specification]">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="items[INDEX][unit]">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="items[INDEX][quantity]">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="items[INDEX][price]">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm item-amount" name="items[INDEX][amount]">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm item-tax-rate" name="items[INDEX][tax_rate]">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm item-tax" name="items[INDEX][tax]">
+        </td>
+        <td>
+            <button type="button" class="btn btn-danger btn-sm remove-item">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化添加行按钮
+    const addItemBtn = document.getElementById('addItemBtn');
+    const itemsTable = document.getElementById('itemsTable').getElementsByTagName('tbody')[0];
+    const itemRowTemplate = document.getElementById('itemRowTemplate').innerHTML;
+    let itemIndex = 1; // 从1开始，因为0已经在HTML中手动添加
+    
+    // 添加明细项行
+    addItemBtn.addEventListener('click', function() {
+        const newRow = itemRowTemplate.replace(/INDEX/g, itemIndex);
+        itemsTable.insertAdjacentHTML('beforeend', newRow);
+        setupRemoveButton(itemsTable.lastElementChild.querySelector('.remove-item'));
+        itemIndex++;
+    });
+    
+    // 设置删除按钮功能
+    function setupRemoveButton(button) {
+        button.addEventListener('click', function() {
+            const row = this.closest('tr');
+            if (itemsTable.childElementCount > 1) { // 至少保留一行
+                row.parentNode.removeChild(row);
+            } else {
+                // 如果是最后一行，清空输入而不是删除
+                const inputs = row.querySelectorAll('input');
+                inputs.forEach(input => input.value = '');
+            }
+        });
+    }
+    
+    // 设置已存在行的删除按钮
+    document.querySelectorAll('.remove-item').forEach(setupRemoveButton);
+    
+    // 计算功能：根据单价和数量计算金额，根据金额和税率计算税额
+    itemsTable.addEventListener('change', function(event) {
+        const target = event.target;
+        if (!target.classList.contains('form-control')) return;
+        
+        const row = target.closest('tr');
+        const price = parseFloat(row.querySelector('input[name$="[price]"]').value) || 0;
+        const quantity = parseFloat(row.querySelector('input[name$="[quantity]"]').value) || 0;
+        const taxRate = parseFloat(row.querySelector('input[name$="[tax_rate]"]').value) || 0;
+        
+        // 计算金额
+        if (target.name.includes('[price]') || target.name.includes('[quantity]')) {
+            const amount = (price * quantity).toFixed(2);
+            row.querySelector('input[name$="[amount]"]').value = amount;
+            
+            // 如果税率已填写，同时更新税额
+            if (taxRate > 0) {
+                const tax = (amount * taxRate / 100).toFixed(2);
+                row.querySelector('input[name$="[tax]"]').value = tax;
+            }
+        }
+        
+        // 计算税额
+        if (target.name.includes('[amount]') || target.name.includes('[tax_rate]')) {
+            const amount = parseFloat(row.querySelector('input[name$="[amount]"]').value) || 0;
+            const tax = (amount * taxRate / 100).toFixed(2);
+            row.querySelector('input[name$="[tax]"]').value = tax;
+        }
+    });
+});
+</script>
+{% endblock %} 

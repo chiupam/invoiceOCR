@@ -52,10 +52,13 @@
                 <i class="fas fa-trash me-1"></i> 清理导出文件
             </button>
             <div class="dropdown mr-2">
-                <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     <i class="fas fa-plus"></i> 新建
                 </button>
                 <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                    <a class="dropdown-item" href="{{ url_for('main.invoice_create') }}">
+                        <i class="fas fa-file-invoice mr-2"></i>新建发票
+                    </a>
                     <a class="dropdown-item" href="{{ url_for('main.upload', project_id=current_project_id) if current_project_id else url_for('main.upload') }}">
                         <i class="fas fa-upload mr-2"></i>上传发票
                     </a>
@@ -150,7 +153,7 @@
                                     <th width="15%">购买方</th>
                                     <th width="15%">
                                         <div class="d-flex align-items-center">
-                                            <span>金额</span>
+                                            <span>价税总额</span>
                                             <div class="sort-icons ms-2">
                                                 <a href="{{ url_for('main.index', project_id=current_project_id, sort_by='amount', order='asc', search=search_query) }}" 
                                                    class="sort-icon {% if sort_by == 'amount' and order == 'asc' %}active{% endif %}">
@@ -289,6 +292,17 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                        
+                        {% if invoices|length == 0 %}
+                        <div class="text-center py-5">
+                            {% if current_project_id == 0 %}
+                            <p class="text-muted mb-0">当前没有未分类的发票</p>
+                            <p class="text-muted">您可以通过上传发票或编辑现有发票进行分类</p>
+                            {% else %}
+                            <p class="text-muted mb-0">没有找到符合条件的发票</p>
+                            {% endif %}
+                        </div>
+                        {% endif %}
                     </div>
                     
                     <!-- 分页导航 -->
@@ -359,7 +373,7 @@
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">总金额</div>
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">价税总额</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">¥{{ stats.total_amount }}</div>
                         </div>
                         <div class="col-auto">
@@ -449,10 +463,106 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{{ url_for('static', filename='js/index.js') }}"></script>
 
 <script>
+    // 基本函数
+    function initLazyLoading() {
+        const lazyImages = document.querySelectorAll('img.lazy-load');
+        
+        if ('IntersectionObserver' in window) {
+            const imageObserver = new IntersectionObserver(function(entries, observer) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting) {
+                        const image = entry.target;
+                        image.src = image.dataset.src;
+                        image.classList.remove('lazy-load');
+                        imageObserver.unobserve(image);
+                    }
+                });
+            });
+            
+            lazyImages.forEach(function(image) {
+                imageObserver.observe(image);
+            });
+        } else {
+            // 备用方案
+            let lazyLoadThrottleTimeout;
+            
+            function lazyLoad() {
+                if (lazyLoadThrottleTimeout) {
+                    clearTimeout(lazyLoadThrottleTimeout);
+                }
+                
+                lazyLoadThrottleTimeout = setTimeout(function() {
+                    const scrollTop = window.pageYOffset;
+                    
+                    lazyImages.forEach(function(img) {
+                        if (img.offsetTop < (window.innerHeight + scrollTop)) {
+                            img.src = img.dataset.src;
+                            img.classList.remove('lazy-load');
+                        }
+                    });
+                    
+                    if (lazyImages.length == 0) { 
+                        document.removeEventListener('scroll', lazyLoad);
+                        window.removeEventListener('resize', lazyLoad);
+                        window.removeEventListener('orientationChange', lazyLoad);
+                    }
+                }, 20);
+            }
+            
+            document.addEventListener('scroll', lazyLoad);
+            window.addEventListener('resize', lazyLoad);
+            window.addEventListener('orientationChange', lazyLoad);
+            
+            lazyLoad();
+        }
+    }
+
+    // 设置删除模态框
+    function setupDeleteModal() {
+        const deleteModal = document.getElementById('deleteModal');
+        if (deleteModal) {
+            deleteModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const id = button.getAttribute('data-id');
+                const type = button.getAttribute('data-type');
+                const number = button.getAttribute('data-number');
+                
+                const modalBody = this.querySelector('.modal-body');
+                modalBody.textContent = `您确定要删除${type || ''}发票${number || ''}吗？此操作无法撤销。`;
+                
+                const form = document.getElementById('deleteForm');
+                form.action = `/invoice/${id}/delete`;
+            });
+        }
+    }
+
+    // 设置发票项目切换
+    function setupItemsToggle() {
+        const toggleBtns = document.querySelectorAll('.toggle-items');
+        toggleBtns.forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                
+                const tr = this.closest('tr');
+                const id = tr.getAttribute('data-target');
+                const collapse = document.querySelector(id);
+                
+                if (collapse) {
+                    const bsCollapse = new bootstrap.Collapse(collapse);
+                    bsCollapse.toggle();
+                }
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
+        // 初始化基本功能
+        initLazyLoading();
+        setupDeleteModal();
+        setupItemsToggle();
+        
         // 处理清理导出文件按钮
         const cleanupBtn = document.getElementById('cleanupFilesBtn');
         if (cleanupBtn) {
@@ -487,6 +597,148 @@
                     });
                 }
             });
+        }
+        
+        // 直接绘制图表
+        try {
+            const chartDataElement = document.getElementById('chartData');
+            if (chartDataElement) {
+                const chartData = JSON.parse(chartDataElement.textContent);
+                console.log("月度图表数据:", chartData); // 调试用
+                
+                const ctx = document.getElementById('monthlyChart').getContext('2d');
+                
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: chartData.labels,
+                        datasets: [
+                            {
+                                label: '发票数量',
+                                data: chartData.counts,
+                                backgroundColor: 'rgba(78, 115, 223, 0.7)',
+                                borderColor: 'rgba(78, 115, 223, 1)',
+                                borderWidth: 1,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: '价税总额 (元)',
+                                data: chartData.amounts,
+                                backgroundColor: 'rgba(28, 200, 138, 0.7)',
+                                borderColor: 'rgba(28, 200, 138, 1)',
+                                borderWidth: 2,
+                                type: 'line',
+                                yAxisID: 'y1',
+                                fill: false,
+                                tension: 0.4,
+                                pointBackgroundColor: 'rgba(28, 200, 138, 1)',
+                                pointRadius: 5,
+                                pointHoverRadius: 7
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: '发票数量'
+                                },
+                                ticks: {
+                                    precision: 0
+                                }
+                            },
+                            y1: {
+                                beginAtZero: true,
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: '价税总额 (元)'
+                                },
+                                grid: {
+                                    drawOnChartArea: false
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.datasetIndex === 1) {
+                                            label += '¥' + Number(context.raw).toLocaleString('zh-CN', {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2
+                                            });
+                                        } else {
+                                            label += context.raw;
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // 绘制类型图表
+                const typeDataElement = document.getElementById('typeData');
+                if (typeDataElement) {
+                    const typeData = JSON.parse(typeDataElement.textContent);
+                    console.log("类型图表数据:", typeData); // 调试用
+                    
+                    const typeCtx = document.getElementById('typeChart').getContext('2d');
+                    
+                    if (typeData.labels && typeData.labels.length > 0) {
+                        new Chart(typeCtx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: typeData.labels,
+                                datasets: [{
+                                    data: typeData.counts,
+                                    backgroundColor: [
+                                        '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
+                                        '#5a5c69', '#858796', '#6610f2', '#fd7e14', '#20c9a6'
+                                    ],
+                                    hoverBackgroundColor: [
+                                        '#2e59d9', '#17a673', '#2c9faf', '#dda20a', '#be2617',
+                                        '#3a3b45', '#60616f', '#4e0bc1', '#cc5a00', '#169b81'
+                                    ],
+                                    hoverBorderColor: "rgba(234, 236, 244, 1)",
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                cutout: '70%',
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom'
+                                    }
+                                }
+                            }
+                        });
+                    } else {
+                        document.getElementById('typeChart').parentElement.innerHTML = '<div class="text-center py-4 text-muted">暂无类型数据</div>';
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('图表初始化失败:', e);
         }
     });
 </script>

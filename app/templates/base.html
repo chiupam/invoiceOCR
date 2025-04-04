@@ -51,7 +51,7 @@
         <div class="sidebar-heading">项目分类</div>
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link {% if current_project_id is none %}active{% endif %}" href="{{ url_for('main.index') }}">
+                <a class="nav-link {% if current_project_id is none and request.path == url_for('main.index') %}active{% endif %}" href="{{ url_for('main.index') }}">
                     <i class="fas fa-fw fa-folder-open"></i> 所有发票
                 </a>
             </li>
@@ -132,15 +132,6 @@
                     sidebar.classList.toggle('show');
                 });
             }
-            
-            // 设置当前活动导航项
-            const currentPath = window.location.pathname;
-            const navLinks = document.querySelectorAll('.nav-link');
-            navLinks.forEach(link => {
-                if (link.getAttribute('href') === currentPath) {
-                    link.classList.add('active');
-                }
-            });
         });
     </script>
     

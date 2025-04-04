@@ -198,12 +198,15 @@ def index():
     
     # 获取统计数据
     # 根据当前过滤条件获取统计
-    if project_id:
+    if project_id is not None:
         if project_id == 0:
+            # 特殊情况：只统计未分类发票
             filtered_invoices = Invoice.query.filter(Invoice.project_id == None).all()
         else:
+            # 查询特定项目ID的发票
             filtered_invoices = Invoice.query.filter_by(project_id=project_id).all()
     else:
+        # 不筛选项目，统计所有发票
         filtered_invoices = Invoice.query.all()
         
     stats = get_invoice_statistics(filtered_invoices)
@@ -352,11 +355,20 @@ def invoice_detail(invoice_id):
     # 获取当前项目ID，用于侧边栏高亮
     current_project_id = invoice.project_id
     
+    # 获取来源页面URL，用于返回按钮
+    referer = request.headers.get('Referer', '')
+    back_url = url_for('main.index')
+    
+    # 如果来源页面包含index并且有分页等参数，保留这些参数
+    if 'index' in referer and ('page=' in referer or 'project_id=' in referer or 'sort_by=' in referer):
+        back_url = referer
+    
     return render_template('invoice_detail.html', 
                           invoice=invoice, 
                           items=items,
                           projects=projects,
-                          current_project_id=current_project_id)
+                          current_project_id=current_project_id,
+                          back_url=back_url)
 
 
 @main.route('/invoice/<int:invoice_id>/edit', methods=['GET', 'POST'])
@@ -877,3 +889,95 @@ def quick_upload():
 #         flash('未能从JSON数据更新发票信息', 'warning')
 #         
 #     return redirect(url_for('main.invoice_detail', invoice_id=invoice_id)) 
+
+@main.route('/invoice/create', methods=['GET', 'POST'])
+def invoice_create():
+    """新建发票"""
+    # 获取项目列表
+    projects = Project.query.order_by(Project.name).all()
+    
+    # 设置当前日期作为默认开票日期
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    if request.method == 'POST':
+        try:
+            # 创建新发票对象
+            invoice = Invoice()
+            
+            # 填充基本信息
+            invoice.invoice_type = request.form.get('invoice_type', '')
+            invoice.invoice_code = request.form.get('invoice_code', '')
+            invoice.invoice_number = request.form.get('invoice_number', '')
+            
+            # 处理日期
+            invoice_date_str = request.form.get('invoice_date', '')
+            if invoice_date_str:
+                try:
+                    invoice.invoice_date = datetime.strptime(invoice_date_str, '%Y-%m-%d').date()
+                    invoice.invoice_date_raw = invoice_date_str
+                except ValueError:
+                    invoice.invoice_date_raw = invoice_date_str
+            
+            # 填充其他信息
+            invoice.seller_name = request.form.get('seller_name', '')
+            invoice.seller_tax_id = request.form.get('seller_tax_id', '')
+            invoice.buyer_name = request.form.get('buyer_name', '')
+            invoice.buyer_tax_id = request.form.get('buyer_tax_id', '')
+            invoice.total_amount = request.form.get('total_amount', '')
+            invoice.total_tax = request.form.get('total_tax', '')
+            invoice.amount_in_figures = request.form.get('amount_in_figures', '')
+            
+            # 设置项目关联
+            project_id = request.form.get('project_id', type=int)
+            invoice.project_id = project_id
+            
+            # 重要：设置图片路径为None，确保后续不会出错
+            invoice.image_path = None
+            
+            # 先保存发票以获取ID
+            db.session.add(invoice)
+            db.session.flush()  # 获取ID但不提交事务
+            
+            current_app.logger.info(f"创建新发票: ID={invoice.id}, 类型={invoice.invoice_type}, 号码={invoice.invoice_number}")
+            
+            # 从表单中获取明细项数据
+            form_data = request.form.to_dict(flat=False)
+            items_added = 0
+            
+            # 查找并添加明细项
+            for key in form_data:
+                if key.startswith('items[') and key.endswith('][name]'):
+                    index = key[6:].split(']')[0]
+                    name = form_data.get(f'items[{index}][name]', [''])[0].strip()
+                    
+                    # 如果名称为空，跳过此项
+                    if not name:
+                        continue
+                    
+                    item = InvoiceItem(
+                        invoice_id=invoice.id,
+                        name=name,
+                        specification=form_data.get(f'items[{index}][specification]', [''])[0],
+                        unit=form_data.get(f'items[{index}][unit]', [''])[0],
+                        quantity=form_data.get(f'items[{index}][quantity]', [''])[0],
+                        price=form_data.get(f'items[{index}][price]', [''])[0],
+                        amount=form_data.get(f'items[{index}][amount]', [''])[0],
+                        tax_rate=form_data.get(f'items[{index}][tax_rate]', [''])[0],
+                        tax=form_data.get(f'items[{index}][tax]', [''])[0]
+                    )
+                    db.session.add(item)
+                    items_added += 1
+                    current_app.logger.info(f"为新发票添加了明细项：{item.name}")
+            
+            # 提交事务
+            db.session.commit()
+            flash(f'新发票创建成功，添加了{items_added}个明细项')
+            return redirect(url_for('main.invoice_detail', invoice_id=invoice.id))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"创建发票时出错: {str(e)}")
+            flash(f'保存失败: {str(e)}', 'danger')
+    
+    return render_template('invoice_create.html', 
+                          projects=projects,
+                          today=today) 

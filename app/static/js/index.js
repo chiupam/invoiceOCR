@@ -240,34 +240,53 @@ function renderMonthlyChart(data) {
                     data: data.counts,
                     backgroundColor: 'rgba(78, 115, 223, 0.7)',
                     borderColor: 'rgba(78, 115, 223, 1)',
-                    borderWidth: 1
+                    borderWidth: 1,
+                    yAxisID: 'y'
                 },
                 {
-                    label: '发票金额',
+                    label: '价税总额 (元)',
                     data: data.amounts,
                     backgroundColor: 'rgba(28, 200, 138, 0.7)',
                     borderColor: 'rgba(28, 200, 138, 1)',
                     borderWidth: 1,
-                    yAxisID: 'y1'
+                    type: 'line',
+                    yAxisID: 'y1',
+                    fill: false,
+                    tension: 0.4,
+                    pointBackgroundColor: 'rgba(28, 200, 138, 1)',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
                 }
             ]
         },
         options: {
             responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
             scales: {
                 y: {
                     beginAtZero: true,
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
                     title: {
                         display: true,
                         text: '发票数量'
+                    },
+                    ticks: {
+                        precision: 0
                     }
                 },
                 y1: {
                     beginAtZero: true,
+                    type: 'linear',
+                    display: true,
                     position: 'right',
                     title: {
                         display: true,
-                        text: '发票金额'
+                        text: '价税总额 (元)'
                     },
                     grid: {
                         drawOnChartArea: false
@@ -275,10 +294,6 @@ function renderMonthlyChart(data) {
                 }
             },
             plugins: {
-                title: {
-                    display: true,
-                    text: '每月发票趋势'
-                },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
@@ -287,7 +302,10 @@ function renderMonthlyChart(data) {
                                 label += ': ';
                             }
                             if (context.datasetIndex === 1) {
-                                label += '¥' + context.raw.toFixed(2);
+                                label += '¥' + Number(context.raw).toLocaleString('zh-CN', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
                             } else {
                                 label += context.raw;
                             }

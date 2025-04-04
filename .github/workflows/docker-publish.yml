@@ -1,0 +1,74 @@
+name: Docker镜像构建与发布
+
+# 当发布新版本或手动触发工作流时执行
+on:
+  release:
+    types: [published]
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build-and-push:
+    name: 构建并推送Docker镜像
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+
+      # 登录到GitHub容器注册表
+      - name: 登录到GitHub容器注册表
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      # 登录到Docker Hub
+      - name: 登录到Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      # 可选：登录到阿里云容器镜像服务，需要在仓库设置中添加相应的密钥
+      # - name: 登录到阿里云容器镜像服务
+      #   uses: docker/login-action@v2
+      #   with:
+      #     registry: registry.cn-hangzhou.aliyuncs.com
+      #     username: ${{ secrets.ALIYUN_USERNAME }}
+      #     password: ${{ secrets.ALIYUN_PASSWORD }}
+
+      - name: 提取元数据
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/invoiceocr
+            # registry.cn-hangzhou.aliyuncs.com/chiupam/invoiceocr
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=branch
+            type=sha
+            latest
+
+      - name: 设置QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: 设置Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: 构建并推送
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64  # 同时支持x86和ARM架构
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max 

@@ -279,100 +279,90 @@ def process_invoice_image(image_path, project_id=None):
         }
 
 
-def get_invoice_statistics(invoices=None):
+def get_invoice_statistics(invoices):
     """获取发票统计数据"""
-    from app.models import Invoice
+    from decimal import Decimal
+    import re
     from datetime import datetime
-    
-    # 如果没有传入发票列表，则查询所有发票
-    if invoices is None:
-        invoices = Invoice.query.all()
     
     # 总发票数
     invoice_count = len(invoices)
     
-    # 总金额 - 使用价税合计(小写)而不是合计金额
+    # 价税总额 - 从价税合计(小写)提取数字部分
     total_amount = 0
     for invoice in invoices:
         if invoice.amount_in_figures:
             try:
-                # 去除¥符号和空格，转为浮点数
-                amount = float(invoice.amount_in_figures.replace('¥', '').replace('￥', '').replace(' ', '').replace('元', '').strip())
-                total_amount += amount
-            except ValueError:
-                # 忽略无法转换的金额
+                # 清理金额字符串，只保留数字和小数点
+                amount_str = re.sub(r'[^\d.]', '', invoice.amount_in_figures)
+                total_amount += float(amount_str) if amount_str else 0
+            except (ValueError, TypeError):
                 pass
     
-    # 获取当前年月
-    current_month = datetime.now().strftime('%Y-%m')
+    # 格式化总金额，保留两位小数
+    total_amount_formatted = "{:,.2f}".format(total_amount)
     
-    # 当月发票数量
-    current_month_count = 0
-    current_month_amount = 0
+    # 按月统计数据
+    monthly_data = {'labels': [], 'counts': [], 'amounts': []}
+    month_stats = {}
     
-    # 按月份统计发票数量
-    monthly_data = {}
+    # 统计每月的发票数量和金额
     for invoice in invoices:
         if invoice.invoice_date:
-            month_key = invoice.invoice_date.strftime('%Y-%m')
+            month_str = invoice.invoice_date.strftime('%Y-%m')
             
-            # 统计当月发票
-            if month_key == current_month:
-                current_month_count += 1
-                # 累加当月金额 - 使用价税合计
-                if invoice.amount_in_figures:
-                    try:
-                        amount = float(invoice.amount_in_figures.replace('¥', '').replace('￥', '').replace(' ', '').replace('元', '').strip())
-                        current_month_amount += amount
-                    except ValueError:
-                        pass
+            if month_str not in month_stats:
+                month_stats[month_str] = {'count': 0, 'amount': 0}
             
-            # 所有月份数据
-            if month_key not in monthly_data:
-                monthly_data[month_key] = {
-                    'count': 0,
-                    'amount': 0
-                }
-            monthly_data[month_key]['count'] += 1
+            month_stats[month_str]['count'] += 1
             
             # 累加金额
-            amount = 0
             if invoice.amount_in_figures:
                 try:
-                    amount = float(invoice.amount_in_figures.replace('¥', '').replace('￥', '').replace(' ', '').replace('元', '').strip())
-                except ValueError:
+                    amount_str = re.sub(r'[^\d.]', '', invoice.amount_in_figures)
+                    month_stats[month_str]['amount'] += float(amount_str) if amount_str else 0
+                except (ValueError, TypeError):
                     pass
-            monthly_data[month_key]['amount'] += amount
     
     # 按月份排序
-    sorted_months = sorted(monthly_data.keys())
+    sorted_months = sorted(month_stats.keys())
     
-    # 计算发票类型分布
-    type_data = {}
+    # 填充月度数据
+    for month in sorted_months:
+        monthly_data['labels'].append(month)
+        monthly_data['counts'].append(month_stats[month]['count'])
+        monthly_data['amounts'].append(month_stats[month]['amount'])
+    
+    # 发票类型统计
+    type_data = {'labels': [], 'counts': []}
+    type_stats = {}
+    
     for invoice in invoices:
         if invoice.invoice_type:
-            if invoice.invoice_type not in type_data:
-                type_data[invoice.invoice_type] = 0
-            type_data[invoice.invoice_type] += 1
+            if invoice.invoice_type not in type_stats:
+                type_stats[invoice.invoice_type] = 0
+            type_stats[invoice.invoice_type] += 1
+    
+    # 填充类型数据
+    for invoice_type, count in type_stats.items():
+        type_data['labels'].append(invoice_type)
+        type_data['counts'].append(count)
+    
+    # 统计当月数据
+    current_month = {'month': '本月', 'count': 0, 'amount': 0}
+    current_month_str = datetime.now().strftime('%Y-%m')
+    
+    if current_month_str in month_stats:
+        current_month['count'] = month_stats[current_month_str]['count']
+        current_month['amount'] = month_stats[current_month_str]['amount']
     
     # 返回统计结果
     return {
         'invoice_count': invoice_count,
-        'total_amount': "{:,.2f}".format(total_amount),
-        'current_month': {
-            'month': current_month,
-            'count': current_month_count,
-            'amount': "{:,.2f}".format(current_month_amount)
-        },
-        'monthly_data': {
-            'labels': sorted_months,
-            'counts': [monthly_data[month]['count'] for month in sorted_months],
-            'amounts': [monthly_data[month]['amount'] for month in sorted_months]
-        },
-        'type_data': {
-            'labels': list(type_data.keys()),
-            'counts': list(type_data.values())
-        }
+        'total_amount': total_amount_formatted,
+        'monthly_data': monthly_data,
+        'type_data': type_data,
+        'current_month': current_month
     }
 
 
