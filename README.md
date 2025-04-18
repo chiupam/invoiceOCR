@@ -1,4 +1,6 @@
-# InvoiceOCR
+<div align="center">
+
+# 🧾 发票OCR管理系统
 
 [![Python Version](https://img.shields.io/badge/python-3.9-blue.svg)](https://www.python.org/downloads/)
 [![Flask Version](https://img.shields.io/badge/flask-2.0.1-green.svg)](https://flask.palletsprojects.com/)
@@ -7,46 +9,46 @@
 [![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Coverage Status](https://img.shields.io/badge/coverage-80%25-green.svg)](https://github.com/chiupam/invoiceOCR/actions)
 
-# 📄 发票OCR管理系统
+</div>
 
-一个基于Flask的发票OCR识别和管理系统，可以上传发票图片，自动识别提取信息，并提供管理、导出和统计功能。
+一个基于Flask框架开发的智能发票管理系统，支持发票图片上传与OCR识别，提供发票信息管理、数据导出及统计分析等功能。系统采用腾讯云OCR API进行发票文字识别，实现发票信息的智能提取与处理。
 
-## 🌟 功能特点
+## ✨ 功能特点
 
-- 发票图片和PDF文件上传与预览
-- 支持手动创建发票，无需上传图片
-- 基于腾讯云OCR API的发票文字识别
-- 支持直接识别PDF发票第一页
-- 发票数据结构化处理与存储
-- 发票列表展示与多维度排序
-- 发票详情查看与编辑
-- 项目分类管理功能
-- 发票图片与PDF预览功能
-- 发票数据导出（CSV、Excel格式）
-- 发票统计分析与图表展示
-- 响应式网页设计，适配多种设备
-- 定时任务自动清理过期文件
+- 📤 发票图片和PDF文件上传与预览
+- ✏️ 支持手动创建发票，无需上传图片
+- 🔍 基于腾讯云OCR API的发票文字识别
+- 📄 支持直接识别PDF发票第一页
+- 💾 发票数据结构化处理与存储
+- 📋 发票列表展示与多维度排序
+- 🔎 发票详情查看与编辑
+- 📁 项目分类管理功能
+- 👁️ 发票图片与PDF预览功能
+- 📊 发票数据导出（CSV、Excel格式）
+- 📈 发票统计分析与图表展示
+- 📱 响应式网页设计，适配多种设备
+- ⏱️ 定时任务自动清理过期文件
 
 ## 🔄 最近更新
 
 最新版本 v1.3 (2024.04.04)
-- 添加手动创建发票功能，无需上传图片即可录入信息
-- 修复未分类发票统计显示问题
-- 添加对image_path为None的检查，避免模板渲染错误
+- ✅ 添加手动创建发票功能，无需上传图片即可录入信息
+- 🐛 修复未分类发票统计显示问题
+- 🔧 添加对image_path为None的检查，避免模板渲染错误
 
 查看完整的更新历史请参考 [CHANGELOG.md](CHANGELOG.md)
 
 ## 🚀 快速开始
 
-### 使用 Docker
+### 🐳 使用 Docker
 
-#### 1. 准备工作
+#### 1️⃣ 准备工作
 
 确保已安装Docker和Docker Compose：
 - [Docker安装指南](https://docs.docker.com/get-docker/)
 - [Docker Compose安装指南](https://docs.docker.com/compose/install/)
 
-#### 2. 部署步骤
+#### 2️⃣ 部署步骤
 
 ##### (1) 克隆仓库并进入项目目录
 ```bash
@@ -68,7 +70,7 @@ docker-compose up -d
 ##### (4) 访问应用
 浏览器访问 http://localhost:5001 即可使用应用。首次访问时，系统会引导您完成腾讯云API密钥设置。
 
-#### 3. 常用Docker命令
+#### 3️⃣ 常用Docker命令
 
 - **查看容器日志**
 ```bash
@@ -85,11 +87,11 @@ docker-compose down
 docker-compose up -d --build
 ```
 
-#### 4. 使用预构建的Docker镜像
+#### 4️⃣ 使用预构建的Docker镜像
 
 我们提供了多个镜像源以适应不同地区用户的需求：
 
-##### Docker Hub (推荐)
+##### 🔵 Docker Hub (推荐)
 
 ```bash
 # 拉取最新版本
@@ -102,7 +104,7 @@ docker pull chiupam/invoiceocr:v1.3
 docker run -d -p 5001:5001 -v $(pwd)/data:/app/data --name invoice_ocr chiupam/invoiceocr:latest
 ```
 
-##### GitHub Container Registry
+##### 🔷 GitHub Container Registry
 
 ```bash
 # 拉取最新版本
@@ -115,20 +117,20 @@ docker pull ghcr.io/chiupam/invoiceocr:v1.3
 docker run -d -p 5001:5001 -v $(pwd)/data:/app/data --name invoice_ocr ghcr.io/chiupam/invoiceocr:latest
 ```
 
-##### 数据持久化
+##### 💾 数据持久化
 
 上面的命令使用了卷挂载 `-v $(pwd)/data:/app/data` 来保证数据在容器重启后不会丢失。您可以根据需要修改本地路径。
 
-### 本地部署
+### 💻 本地部署
 
-#### 1. 克隆项目
+#### 1️⃣ 克隆项目
 
 ```bash
 git clone https://github.com/chiupam/invoiceOCR.git
 cd invoiceOCR
 ```
 
-#### 2. 创建并激活虚拟环境
+#### 2️⃣ 创建并激活虚拟环境
 
 ```bash
 # 创建虚拟环境
@@ -143,14 +145,14 @@ source .venv/bin/activate
 
 激活后，命令行前面会出现`(.venv)`前缀，表示当前处于虚拟环境中。后续所有命令都应在此环境中执行。
 
-#### 3. 安装依赖
+#### 3️⃣ 安装依赖
 
 ```bash
 # 确保在虚拟环境中执行
 (.venv) pip3 install -r requirements.txt
 ```
 
-#### 4. 基本环境配置
+#### 4️⃣ 基本环境配置
 
 创建 `.env` 文件（可以复制 `.env.example` 并根据需要修改）：
 
@@ -161,7 +163,7 @@ source .venv/bin/activate
 
 注意：与旧版本不同，API密钥现在不需要在环境变量中配置，而是在Web界面中设置。
 
-#### 5. 运行应用
+#### 5️⃣ 运行应用
 
 ```bash
 (.venv) python3 run.py
@@ -169,7 +171,7 @@ source .venv/bin/activate
 
 应用将在 http://127.0.0.1:5001/ 运行。首次运行时，系统会自动初始化数据库并引导您完成必要的设置。
 
-#### 6. 首次访问配置
+#### 6️⃣ 首次访问配置
 
 首次访问系统时，会自动跳转到设置页面，需要配置以下信息：
 
@@ -179,19 +181,19 @@ source .venv/bin/activate
 
 配置完成后，即可开始使用系统的所有功能。
 
-#### 7. 退出虚拟环境（完成使用后）
+#### 7️⃣ 退出虚拟环境（完成使用后）
 
 ```bash
 (.venv) deactivate
 ```
 
-#### 常见问题解决
+#### ❓ 常见问题解决
 
 - **依赖安装失败**：尝试更新pip后再安装 `python3 -m pip install --upgrade pip`
 - **数据库初始化错误**：确认是否有足够权限创建文件，或检查data目录是否存在
 - **OCR识别失败**：检查`.env`文件中的腾讯云API密钥是否正确
 
-## 📚 项目结构
+## 📂 项目结构
 
 ```
 InvoiceOCR/
