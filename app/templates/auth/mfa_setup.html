@@ -1,0 +1,35 @@
+{% extends "auth/base.html" %}
+{% block title %}启用两步验证 - 发票OCR管理系统{% endblock %}
+
+{% block subtitle %}<p>设置两步验证</p>{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('auth.mfa_setup') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div class="text-center mb-3">
+        <p class="text-muted mb-2" style="font-size: 14px;">1. 使用身份验证器应用（如 Google Authenticator）扫描下方二维码</p>
+        <img src="data:image/png;base64,{{ qr_b64 }}" alt="MFA QR Code" class="img-fluid mb-3" style="max-width: 220px; border: 1px solid #eee; border-radius: 8px; padding: 8px;">
+    </div>
+
+    <div class="mb-3 p-3" style="background: #f8f9fa; border-radius: 10px;">
+        <p class="text-muted mb-1" style="font-size: 13px;">2. 如果无法扫描二维码，请手动输入密钥：</p>
+        <code style="font-size: 14px; word-break: break-all; user-select: all;">{{ secret }}</code>
+    </div>
+
+    <div class="mb-3">
+        <p class="text-muted mb-2" style="font-size: 14px;">3. 输入身份验证器中显示的6位验证码以完成绑定：</p>
+        <div class="form-floating">
+            {{ form.code(class="form-control text-center", placeholder="6位验证码", maxlength="6", style="font-size: 24px; letter-spacing: 8px;") }}
+            {{ form.code.label(class="form-label") }}
+            {% if form.code.errors %}
+                {% for error in form.code.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    {{ form.submit(class="btn btn-auth") }}
+</form>
+{% endblock %}

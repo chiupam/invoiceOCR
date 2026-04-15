@@ -1,0 +1,30 @@
+{% extends "auth/base.html" %}
+{% block title %}两步验证 - 发票OCR管理系统{% endblock %}
+
+{% block subtitle %}<p>请输入身份验证器中的6位验证码</p>{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('auth.mfa_verify') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div class="text-center mb-4">
+        <i class="fas fa-shield-alt" style="font-size: 48px; color: #667eea;"></i>
+    </div>
+
+    <div class="form-floating">
+        {{ form.code(class="form-control text-center", placeholder="6位验证码", autocomplete="one-time-code", maxlength="6", style="font-size: 24px; letter-spacing: 8px;") }}
+        {{ form.code.label(class="form-label") }}
+        {% if form.code.errors %}
+            {% for error in form.code.errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    {{ form.submit(class="btn btn-auth") }}
+</form>
+
+<div class="auth-footer mt-3">
+    <a href="{{ url_for('auth.login') }}">返回登录</a>
+</div>
+{% endblock %}

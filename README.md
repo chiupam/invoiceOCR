@@ -1,52 +1,90 @@
-# InvoiceOCR
+<div align="center">
+
+# 🧾 发票OCR管理系统
 
 [![Python Version](https://img.shields.io/badge/python-3.9-blue.svg)](https://www.python.org/downloads/)
 [![Flask Version](https://img.shields.io/badge/flask-2.0.1-green.svg)](https://flask.palletsprojects.com/)
+[![Version](https://img.shields.io/badge/version-v1.4-orange.svg)](https://github.com/chiupam/invoiceOCR/releases)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-available-blue.svg)](https://hub.docker.com/r/chiupam/invoiceocr)
 [![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Coverage Status](https://img.shields.io/badge/coverage-80%25-green.svg)](https://github.com/chiupam/invoiceOCR/actions)
 
-# 📄 发票OCR管理系统
+</div>
 
-一个基于Flask的发票OCR识别和管理系统，可以上传发票图片，自动识别提取信息，并提供管理、导出和统计功能。
+一个基于Flask框架开发的智能发票管理系统，支持发票图片上传与OCR识别，提供发票信息管理、数据导出及统计分析等功能。系统采用腾讯云OCR API进行发票文字识别，实现发票信息的智能提取与处理。
 
-## 🌟 功能特点
+## ✨ 功能特点
 
-- 发票图片和PDF文件上传与预览
-- 支持手动创建发票，无需上传图片
-- 基于腾讯云OCR API的发票文字识别
-- 支持直接识别PDF发票第一页
-- 发票数据结构化处理与存储
-- 发票列表展示与多维度排序
-- 发票详情查看与编辑
-- 项目分类管理功能
-- 发票图片与PDF预览功能
-- 发票数据导出（CSV、Excel格式）
-- 发票统计分析与图表展示
-- 响应式网页设计，适配多种设备
-- 定时任务自动清理过期文件
+- 📤 发票图片和PDF文件上传与预览
+- ✏️ 支持手动创建发票，无需上传图片
+- 🔍 基于腾讯云OCR API的发票文字识别
+- 📄 支持直接识别PDF发票第一页
+- 💾 发票数据结构化处理与存储
+- 📋 发票列表展示与多维度排序
+- 🔎 发票详情查看与编辑
+- 📁 项目分类管理功能
+- 👁️ 发票图片与PDF预览功能
+- 📊 发票数据导出（CSV、Excel格式）
+- 📈 发票统计分析与图表展示
+- 📱 响应式网页设计，适配多种设备
+- ⏱️ 定时任务自动清理过期文件
+- 🔐 用户登录认证（bcrypt加密 + 仅密码登录）
+- 🛡️ 两步验证（TOTP，兼容Google Authenticator）
+- 🔒 账户锁定保护（5次失败锁定15分钟 + 倒计时）
+- 🚫 CSRF全局防护 + 请求限流
+- 📝 安全审计日志
 
 ## 🔄 最近更新
 
-最新版本 v1.3 (2024.04.04)
-- 添加手动创建发票功能，无需上传图片即可录入信息
-- 修复未分类发票统计显示问题
-- 添加对image_path为None的检查，避免模板渲染错误
+最新版本 v1.4 (2026.04.14)
+
+**🔐 用户认证与安全体系**
+- ✅ 新增完整的用户登录认证系统（Flask-Login + bcrypt）
+- ✅ 新增首次启动密码设置流程，无需用户名，仅需设置密码
+- ✅ 新增 TOTP 两步验证（MFA），兼容 Google Authenticator
+- ✅ 新增账户锁定机制：5次密码错误锁定15分钟，锁定期间禁用表单+倒计时
+- ✅ 新增 Flask-Limiter 请求限流（GET 60/min, POST 20/min）
+- ✅ 新增全局 CSRF 防护（Flask-WTF CSRFProtect）
+- ✅ 新增会话安全配置（HttpOnly + Secure + SameSite=Lax）
+- ✅ 新增安全审计日志（`data/logs/security.log`）
+
+**🛡️ CLI 管理工具**
+- ✅ 新增 `flask unlock-admin` 应急解锁命令
+- ✅ 新增 `flask reset-account` 账户初始化重置命令
+- ✅ 加固 `flask create-admin` 命令，限制仅无用户时可执行
+
+**🔒 安全增强**
+- ✅ 密码存储升级为 bcrypt 算法（rounds=12），兼容旧 pbkdf2 自动迁移
+- ✅ Settings 页面 API 密钥脱敏显示（password 类型 + 显示/隐藏切换）
+- ✅ 所有表单和 AJAX 请求添加 CSRF Token
+- ✅ 新增 429 限流友好中文提示页面
+- ✅ 登录页锁定状态：禁用密码输入 + 实时倒计时 + 自动刷新解锁
+
+**📁 项目结构调整**
+- ✅ 新增 `app/auth.py` 认证蓝图（登录/设置/MFA/密码管理）
+- ✅ 新增 `app/templates/auth/` 认证模板目录（8个模板文件）
+- ✅ 新增 `app/templates/errors/429.html` 限流错误页面
+- ✅ 新增 `data/logs/` 安全审计日志目录
+
+---
 
 查看完整的更新历史请参考 [CHANGELOG.md](CHANGELOG.md)
 
+## 📅 未来计划
+- 💺 预计将支持12306车票及航班票次的识别
+
 ## 🚀 快速开始
 
-### 使用 Docker
+### 🐳 使用 Docker
 
-#### 1. 准备工作
+#### 1️⃣ 准备工作
 
 确保已安装Docker和Docker Compose：
 - [Docker安装指南](https://docs.docker.com/get-docker/)
 - [Docker Compose安装指南](https://docs.docker.com/compose/install/)
 
-#### 2. 部署步骤
+#### 2️⃣ 部署步骤
 
 ##### (1) 克隆仓库并进入项目目录
 ```bash
@@ -66,9 +104,9 @@ docker-compose up -d
 ```
 
 ##### (4) 访问应用
-浏览器访问 http://localhost:5001 即可使用应用。首次访问时，系统会引导您完成腾讯云API密钥设置。
+浏览器访问 http://localhost:5001 即可使用应用。首次访问时，系统会引导您设置访问密码，登录后再配置腾讯云API密钥。
 
-#### 3. 常用Docker命令
+#### 3️⃣ 常用Docker命令
 
 - **查看容器日志**
 ```bash
@@ -85,11 +123,11 @@ docker-compose down
 docker-compose up -d --build
 ```
 
-#### 4. 使用预构建的Docker镜像
+#### 4️⃣ 使用预构建的Docker镜像
 
 我们提供了多个镜像源以适应不同地区用户的需求：
 
-##### Docker Hub (推荐)
+##### 🔵 Docker Hub (推荐)
 
 ```bash
 # 拉取最新版本
@@ -102,7 +140,7 @@ docker pull chiupam/invoiceocr:v1.3
 docker run -d -p 5001:5001 -v $(pwd)/data:/app/data --name invoice_ocr chiupam/invoiceocr:latest
 ```
 
-##### GitHub Container Registry
+##### 🔷 GitHub Container Registry
 
 ```bash
 # 拉取最新版本
@@ -115,20 +153,20 @@ docker pull ghcr.io/chiupam/invoiceocr:v1.3
 docker run -d -p 5001:5001 -v $(pwd)/data:/app/data --name invoice_ocr ghcr.io/chiupam/invoiceocr:latest
 ```
 
-##### 数据持久化
+##### 💾 数据持久化
 
 上面的命令使用了卷挂载 `-v $(pwd)/data:/app/data` 来保证数据在容器重启后不会丢失。您可以根据需要修改本地路径。
 
-### 本地部署
+### 💻 本地部署
 
-#### 1. 克隆项目
+#### 1️⃣ 克隆项目
 
 ```bash
 git clone https://github.com/chiupam/invoiceOCR.git
 cd invoiceOCR
 ```
 
-#### 2. 创建并激活虚拟环境
+#### 2️⃣ 创建并激活虚拟环境
 
 ```bash
 # 创建虚拟环境
@@ -143,14 +181,14 @@ source .venv/bin/activate
 
 激活后，命令行前面会出现`(.venv)`前缀，表示当前处于虚拟环境中。后续所有命令都应在此环境中执行。
 
-#### 3. 安装依赖
+#### 3️⃣ 安装依赖
 
 ```bash
 # 确保在虚拟环境中执行
 (.venv) pip3 install -r requirements.txt
 ```
 
-#### 4. 基本环境配置
+#### 4️⃣ 基本环境配置
 
 创建 `.env` 文件（可以复制 `.env.example` 并根据需要修改）：
 
@@ -161,7 +199,7 @@ source .venv/bin/activate
 
 注意：与旧版本不同，API密钥现在不需要在环境变量中配置，而是在Web界面中设置。
 
-#### 5. 运行应用
+#### 5️⃣ 运行应用
 
 ```bash
 (.venv) python3 run.py
@@ -169,91 +207,109 @@ source .venv/bin/activate
 
 应用将在 http://127.0.0.1:5001/ 运行。首次运行时，系统会自动初始化数据库并引导您完成必要的设置。
 
-#### 6. 首次访问配置
+#### 6️⃣ 首次访问配置
 
-首次访问系统时，会自动跳转到设置页面，需要配置以下信息：
+首次访问系统时，会自动跳转到密码设置页面：
 
-1. 腾讯云OCR API密钥（SecretId和SecretKey）
+1. 设置访问密码（至少8位，需包含字母和数字）
+2. 设置成功后自动登录，进入系统首页
+3. 前往「系统设置」配置腾讯云OCR API密钥（SecretId和SecretKey）
    - 可在[腾讯云控制台](https://console.cloud.tencent.com/cam/capi)获取
-   - 需要开通腾讯云OCR服务（增值税发票识别）
+   - 需要开通[腾讯云OCR](https://cloud.tencent.com/document/product/866/50069)服务（增值税发票识别）
 
 配置完成后，即可开始使用系统的所有功能。
 
-#### 7. 退出虚拟环境（完成使用后）
+#### 7️⃣ 退出虚拟环境（完成使用后）
 
 ```bash
 (.venv) deactivate
 ```
 
-#### 常见问题解决
+#### ❓ 常见问题解决
 
 - **依赖安装失败**：尝试更新pip后再安装 `python3 -m pip install --upgrade pip`
 - **数据库初始化错误**：确认是否有足够权限创建文件，或检查data目录是否存在
 - **OCR识别失败**：检查`.env`文件中的腾讯云API密钥是否正确
 
-## 📚 项目结构
+## 📂 项目结构
 
 ```
 InvoiceOCR/
-├── app/                          # Web应用主目录
-│   ├── static/                   # 静态资源
-│   │   ├── css/                  # CSS样式
-│   │   │   └── style.css         # 全局样式表
-│   │   ├── js/                   # JavaScript文件
-│   │   │   ├── edit_invoice.js   # 发票编辑页面脚本
-│   │   │   ├── index.js          # 首页脚本
-│   │   │   ├── main.js           # 主要公共脚本
-│   │   │   └── upload.js         # 上传页面脚本
-│   │   └── uploads/              # 上传的发票图片存储目录
-│   ├── templates/                # HTML模板
-│   │   ├── errors/               # 错误页面模板
-│   │   │   ├── 404.html          # 404错误页面
-│   │   │   └── 500.html          # 500错误页面
-│   │   ├── base.html             # 基础布局模板
-│   │   ├── index.html            # 首页模板
-│   │   ├── invoice_create.html   # 发票创建页面
-│   │   ├── invoice_detail.html   # 发票详情页面
-│   │   ├── invoice_edit.html     # 发票编辑页面
-│   │   ├── project_detail.html   # 项目详情页面
-│   │   ├── project_form.html     # 项目编辑表单
-│   │   ├── project_list.html     # 项目列表页面
-│   │   ├── settings.html         # 设置页面
-│   │   └── upload.html           # 上传页面
-│   ├── __init__.py               # 应用初始化
-│   ├── config.py                 # 应用配置
-│   ├── models.py                 # 数据模型
-│   ├── routes.py                 # 路由定义
-│   └── utils.py                  # 辅助函数
-├── core/                         # 核心功能模块
-│   ├── __init__.py               # 模块初始化
-│   ├── invoice_export.py         # 发票数据导出功能
-│   ├── invoice_formatter.py      # 发票数据格式化
-│   ├── ocr_api.py                # OCR API调用功能
-│   ├── ocr_process.py            # OCR结果处理
-│   └── README.md                 # 核心模块说明文档
-├── data/                         # 数据存储目录
-│   ├── invoices.db               # SQLite数据库文件
-│   ├── output/                   # 导出文件存储目录
-│   └── README.md                 # 数据目录说明文档
-├── tools/                        # 工具脚本目录
-│   ├── clean_temp_files.py       # 临时文件清理工具
-│   ├── db_backup.py              # 数据库备份工具
-│   ├── db_init.py                # 数据库初始化脚本
-│   ├── db_query.py               # 数据库查询工具
-│   ├── generate_test_data.py     # 测试数据生成工具
-│   └── README.md                 # 工具脚本说明文档
-├── test/                         # 测试目录
-│   ├── fixtures/                 # 测试数据目录
-│   │   └── invoices/             # 测试发票图片
-│   └── README.md                 # 测试说明文档
-├── .env.example                  # 环境变量示例文件
-├── .gitignore                    # Git忽略文件
-├── docker-compose.yml            # Docker Compose配置
-├── Dockerfile                    # Docker构建文件
-├── LICENSE                       # 许可证文件
-├── README.md                     # 项目说明文档
-├── requirements.txt              # 项目依赖
-└── run.py                        # 应用启动脚本
+├── app/                              # Web应用主目录
+│   ├── static/                       # 静态资源
+│   │   ├── css/                      # CSS样式
+│   │   │   └── style.css             # 全局样式表
+│   │   ├── js/                       # JavaScript文件
+│   │   │   ├── edit_invoice.js       # 发票编辑页面脚本
+│   │   │   ├── index.js              # 首页脚本
+│   │   │   ├── main.js               # 主要公共脚本
+│   │   │   └── upload.js             # 上传页面脚本
+│   │   └── uploads/                  # 上传的发票图片存储目录
+│   ├── templates/                    # HTML模板
+│   │   ├── auth/                     # 认证模板
+│   │   │   ├── base.html             # 认证页基础布局
+│   │   │   ├── login.html            # 登录页
+│   │   │   ├── setup.html            # 首次密码设置
+│   │   │   ├── change_password.html  # 修改密码
+│   │   │   ├── mfa_setup.html        # MFA绑定
+│   │   │   ├── mfa_verify.html       # MFA验证
+│   │   │   ├── mfa_manage.html       # MFA管理
+│   │   │   └── profile.html          # 账户信息
+│   │   ├── errors/                   # 错误页面模板
+│   │   │   ├── 404.html              # 404错误页面
+│   │   │   ├── 429.html              # 429限流提示
+│   │   │   └── 500.html              # 500错误页面
+│   │   ├── base.html                 # 基础布局模板
+│   │   ├── index.html                # 首页模板
+│   │   ├── invoice_create.html       # 发票创建页面
+│   │   ├── invoice_detail.html       # 发票详情页面
+│   │   ├── invoice_edit.html         # 发票编辑页面
+│   │   ├── edit_invoice.html         # 发票编辑页面（旧版兼容）
+│   │   ├── confirm_delete.html       # 删除确认页面
+│   │   ├── project_detail.html       # 项目详情页面
+│   │   ├── project_form.html         # 项目编辑表单
+│   │   ├── project_list.html         # 项目列表页面
+│   │   ├── settings.html             # 设置页面
+│   │   └── upload.html               # 上传页面
+│   ├── __init__.py                   # 应用工厂
+│   ├── auth.py                       # 认证蓝图 
+│   ├── config.py                     # 应用配置
+│   ├── models.py                     # 数据模型
+│   ├── routes.py                     # 主路由蓝图
+│   └── utils.py                      # 辅助函数
+├── core/                             # 核心功能模块
+│   ├── __init__.py                   # 模块初始化
+│   ├── invoice_export.py             # 发票数据导出功能
+│   ├── invoice_formatter.py          # 发票数据格式化
+│   ├── ocr_api.py                    # OCR API调用功能
+│   ├── ocr_process.py                # OCR结果处理
+│   └── README.md                     # 核心模块说明文档
+├── data/                             # 数据存储目录
+│   ├── invoices.db                   # SQLite数据库文件
+│   ├── logs/                         # 安全审计日志 
+│   │   └── security.log              # 安全操作审计记录
+│   ├── output/                       # 导出文件存储目录
+│   └── README.md                     # 数据目录说明文档
+├── tools/                            # 工具脚本目录
+│   ├── clean_temp_files.py           # 临时文件清理工具
+│   ├── db_backup.py                  # 数据库备份工具
+│   ├── db_init.py                    # 数据库初始化脚本
+│   ├── db_query.py                   # 数据库查询工具
+│   ├── generate_test_data.py         # 测试数据生成工具
+│   └── README.md                     # 工具脚本说明文档
+├── test/                             # 测试目录
+│   ├── fixtures/                     # 测试数据目录
+│   │   └── invoices/                 # 测试发票图片
+│   └── README.md                     # 测试说明文档
+├── .env                              # 环境变量文件（不入库）
+├── .env.example                      # 环境变量示例文件
+├── .gitignore                        # Git忽略文件
+├── docker-compose.yml                # Docker Compose配置
+├── Dockerfile                        # Docker构建文件
+├── LICENSE                           # 许可证文件
+├── README.md                         # 项目说明文档
+├── requirements.txt                  # 项目依赖
+└── run.py                            # 应用入口 + CLI命令 + 定时任务
 ```
 
 ## 🔧 配置说明
@@ -341,6 +397,8 @@ MIT License
 ## 👤 作者
 
 - [chiupam](https://github.com/chiupam)
+- ✈️ Telegram: [@Chiupam](https://t.me/Chiupam)
+- 📧 Email: [chiupam@126.com](mailto:chiupam@126.com)
 
 ## 🙏 致谢
 

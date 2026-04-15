@@ -41,6 +41,7 @@
                     </div>
                     
                     <form action="{{ url_for('main.invoice_delete', invoice_id=invoice.id) }}" method="POST" class="mb-0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="d-flex justify-content-between">
                             <a href="{{ url_for('main.invoice_detail', invoice_id=invoice.id) }}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left me-1"></i> 返回发票详情

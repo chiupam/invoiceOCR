@@ -43,6 +43,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             fetch('/upload', {
                 method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="csrf_token"]')?.value || ''
+                },
                 body: formData
             })
             .then(response => {

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}个人资料 - 发票OCR管理系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-user-circle me-2"></i>账户信息</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <td class="text-muted" style="width: 120px;">用户名</td>
+                        <td class="fw-bold">{{ current_user.username }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">邮箱</td>
+                        <td>{{ current_user.email }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">两步验证</td>
+                        <td>
+                            {% if current_user.mfa_enabled %}
+                            <span class="badge bg-success"><i class="fas fa-check me-1"></i>已启用</span>
+                            {% else %}
+                            <span class="badge bg-secondary">未启用</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">上次登录</td>
+                        <td>{{ current_user.last_login_at.strftime('%Y-%m-%d %H:%M:%S') if current_user.last_login_at else '首次登录' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">上次登录IP</td>
+                        <td>{{ current_user.last_login_ip or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">注册时间</td>
+                        <td>{{ current_user.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-3">
+            <div class="card-body">
+                <div class="d-flex flex-column gap-2">
+                    <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-key me-2"></i>修改密码
+                    </a>
+                    <a href="{{ url_for('auth.mfa_manage') }}" class="btn btn-outline-{{ 'success' if current_user.mfa_enabled else 'warning' }}">
+                        <i class="fas fa-shield-alt me-2"></i>{{ '管理' if current_user.mfa_enabled else '启用' }}两步验证
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

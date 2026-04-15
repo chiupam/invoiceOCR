@@ -8,29 +8,54 @@
     <div class="col-md-8 offset-md-2">
       <div class="card shadow">
         <div class="card-header bg-primary text-white">
-          <h5 class="mb-0">系统设置</h5>
+          <h5 class="mb-0"><i class="fas fa-cog me-2"></i>系统设置</h5>
         </div>
         <div class="card-body">
           <form method="POST" action="{{ url_for('main.settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-4">
               <h6 class="text-muted">腾讯云OCR API配置</h6>
               <hr>
               <div class="mb-3">
                 <label for="tencent_secret_id" class="form-label">SecretId <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="tencent_secret_id" name="tencent_secret_id" 
-                      value="{{ tencent_secret_id }}" required>
-                <div class="form-text">腾讯云API密钥SecretId，可在<a href="https://console.cloud.tencent.com/cam/capi" target="_blank">腾讯云控制台</a>获取</div>
+                <div class="input-group">
+                  <input type="password" class="form-control" id="tencent_secret_id" name="tencent_secret_id"
+                        value="{{ tencent_secret_id }}" required autocomplete="off">
+                  <button class="btn btn-outline-secondary" type="button" onclick="toggleVisibility('tencent_secret_id', this)">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+                <div class="form-text">腾讯云API密钥SecretId，可在<a href="https://console.cloud.tencent.com/cam/capi" target="_blank" rel="noopener">腾讯云控制台</a>获取</div>
               </div>
               <div class="mb-3">
                 <label for="tencent_secret_key" class="form-label">SecretKey <span class="text-danger">*</span></label>
-                <input type="password" class="form-control" id="tencent_secret_key" name="tencent_secret_key" 
-                      value="{{ tencent_secret_key }}" required>
+                <div class="input-group">
+                  <input type="password" class="form-control" id="tencent_secret_key" name="tencent_secret_key"
+                        value="{{ tencent_secret_key }}" required autocomplete="off">
+                  <button class="btn btn-outline-secondary" type="button" onclick="toggleVisibility('tencent_secret_key', this)">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
                 <div class="form-text">腾讯云API密钥SecretKey</div>
               </div>
             </div>
-            
+
+            <div class="mb-4">
+              <h6 class="text-muted">安全信息</h6>
+              <hr>
+              <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                <div>
+                  <i class="fas fa-shield-alt me-2 text-{{ 'success' if current_user.mfa_enabled else 'warning' }}"></i>
+                  两步验证：<strong class="text-{{ 'success' if current_user.mfa_enabled else 'warning' }}">{{ '已启用' if current_user.mfa_enabled else '未启用' }}</strong>
+                </div>
+                <a href="{{ url_for('auth.mfa_manage') }}" class="btn btn-sm btn-outline-{{ 'success' if current_user.mfa_enabled else 'warning' }}">
+                  {{ '管理' if current_user.mfa_enabled else '启用' }}
+                </a>
+              </div>
+            </div>
+
             <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-              <button type="submit" class="btn btn-primary">保存设置</button>
+              <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>保存设置</button>
             </div>
           </form>
         </div>
@@ -38,4 +63,22 @@
     </div>
   </div>
 </div>
-{% endblock %} 
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+</script>
+{% endblock %}

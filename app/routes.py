@@ -5,6 +5,7 @@ import os
 import json
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, send_file, session, abort
+from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import desc, func
 from decimal import Decimal
@@ -33,6 +34,7 @@ def check_system_setup():
 
 @main.route('/')
 @main.route('/index')
+@login_required
 def index():
     """发票首页"""
     # 获取URL参数
@@ -224,6 +226,7 @@ def index():
 
 
 @main.route('/upload', methods=['GET', 'POST'])
+@login_required
 def upload():
     """上传发票页面"""
     # 获取项目列表
@@ -341,6 +344,7 @@ def upload():
 
 
 @main.route('/invoice/<int:invoice_id>')
+@login_required
 def invoice_detail(invoice_id):
     """发票详情页"""
     # 查询发票数据
@@ -372,6 +376,7 @@ def invoice_detail(invoice_id):
 
 
 @main.route('/invoice/<int:invoice_id>/edit', methods=['GET', 'POST'])
+@login_required
 def invoice_edit(invoice_id):
     """编辑发票信息"""
     # 查询发票数据
@@ -459,6 +464,7 @@ def invoice_edit(invoice_id):
 
 
 @main.route('/invoice/<int:invoice_id>/delete', methods=['GET', 'POST'])
+@login_required
 def invoice_delete(invoice_id):
     """删除发票"""
     # 查询发票数据
@@ -505,6 +511,7 @@ def invoice_delete(invoice_id):
 
 
 @main.route('/invoice/<int:invoice_id>/export/<format>')
+@login_required
 def invoice_export(invoice_id, format):
     """导出发票数据"""
     try:
@@ -529,6 +536,7 @@ def invoice_export(invoice_id, format):
 
 
 @main.route('/api/statistics')
+@login_required
 def api_statistics():
     """获取发票统计数据（JSON格式）"""
     # 获取所有发票
@@ -594,6 +602,7 @@ def api_statistics():
 
 # 更新项目列表页面
 @main.route('/projects')
+@login_required
 def project_list():
     """项目列表页面"""
     projects = Project.query.order_by(Project.name).all()
@@ -617,6 +626,7 @@ def project_list():
 
 
 @main.route('/projects/create', methods=['GET', 'POST'])
+@login_required
 def project_create():
     """创建新项目"""
     # 获取所有项目，用于侧边栏
@@ -645,6 +655,7 @@ def project_create():
 
 
 @main.route('/projects/<int:project_id>/edit', methods=['GET', 'POST'])
+@login_required
 def project_edit(project_id):
     """编辑项目"""
     project = Project.query.get_or_404(project_id)
@@ -675,6 +686,7 @@ def project_edit(project_id):
                           current_project_id=project_id)
 
 @main.route('/projects/<int:project_id>/delete', methods=['POST'])
+@login_required
 def project_delete(project_id):
     """删除项目"""
     project = Project.query.get_or_404(project_id)
@@ -702,6 +714,7 @@ def project_delete(project_id):
     return redirect(url_for('main.project_list'))
 
 @main.route('/project/<int:project_id>')
+@login_required
 def project_detail(project_id):
     """项目详情页面"""
     project = Project.query.get_or_404(project_id)
@@ -719,6 +732,7 @@ def project_detail(project_id):
                           current_project_id=project_id)
 
 @main.route('/project/<int:project_id>/export')
+@login_required
 def project_export(project_id):
     """导出项目数据"""
     try:
@@ -742,6 +756,7 @@ def project_export(project_id):
         return redirect(url_for('main.project_detail', project_id=project_id))
 
 @main.route('/api/update-all-invoices', methods=['POST'])
+@login_required
 def api_update_all_invoices():
     """从JSON数据更新所有发票（API接口）"""
     if request.method == 'POST':
@@ -761,6 +776,7 @@ def api_update_all_invoices():
     return jsonify({'success': False, 'message': '请使用POST方法访问此接口'})
 
 @main.route('/api/cleanup-exported-files', methods=['POST'])
+@login_required
 def cleanup_files():
     """清理已导出的文件"""
     if request.method == 'POST':
@@ -782,6 +798,7 @@ def cleanup_files():
 
 # 设置页面
 @main.route('/settings', methods=['GET', 'POST'])
+@login_required
 def settings():
     """系统设置页面"""
     if request.method == 'POST':
@@ -810,6 +827,7 @@ def settings():
                            tencent_secret_key=tencent_secret_key)
 
 @main.route('/quick_upload', methods=['POST'])
+@login_required
 def quick_upload():
     """快速上传接口 - 用于拖放上传功能"""
     # 检查系统是否已设置
@@ -891,6 +909,7 @@ def quick_upload():
 #     return redirect(url_for('main.invoice_detail', invoice_id=invoice_id)) 
 
 @main.route('/invoice/create', methods=['GET', 'POST'])
+@login_required
 def invoice_create():
     """新建发票"""
     # 获取项目列表

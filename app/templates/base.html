@@ -4,20 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="发票OCR管理系统">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <title>{% block title %}发票OCR管理系统{% endblock %}</title>
     
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css" rel="stylesheet">
-    <!-- 自定义样式 -->
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     
     {% block styles %}{% endblock %}
 </head>
 <body>
-    <!-- 侧边栏 -->
     <div class="sidebar">
         <div class="sidebar-brand">
             <i class="fas fa-receipt me-2"></i> 发票OCR系统
@@ -46,7 +43,6 @@
             </li>
         </ul>
         
-        <!-- 项目导航 -->
         <hr class="sidebar-divider">
         <div class="sidebar-heading">项目分类</div>
         <ul class="nav flex-column">
@@ -72,9 +68,7 @@
         </ul>
     </div>
     
-    <!-- 主体内容 -->
     <div class="content">
-        <!-- 顶部导航栏 -->
         <nav class="navbar navbar-expand navbar-light bg-white mb-4">
             <button id="sidebarToggle" class="btn btn-link d-md-none rounded-circle me-3">
                 <i class="fa fa-bars"></i>
@@ -82,20 +76,34 @@
             <div class="navbar-nav ms-auto">
                 <div class="nav-item dropdown no-arrow">
                     <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <span class="me-2 d-none d-lg-inline text-gray-600 small">管理员</span>
+                        <span class="me-2 d-none d-lg-inline text-gray-600 small">{{ current_user.username }}</span>
                         <i class="fas fa-user-circle fa-fw"></i>
                     </a>
-                    <ul class="dropdown-menu dropdown-menu-end shadow animated--grow-in" aria-labelledby="userDropdown">
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-user fa-sm fa-fw me-2 text-gray-400"></i> 个人资料</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('main.settings') }}"><i class="fas fa-cogs fa-sm fa-fw me-2 text-gray-400"></i> 设置</a></li>
+                    <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
+                        <li>
+                            <span class="dropdown-item-text small text-muted">
+                                {{ current_user.email }}
+                                {% if current_user.mfa_enabled %}<span class="badge bg-success ms-1"><i class="fas fa-shield-alt"></i></span>{% endif %}
+                            </span>
+                        </li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-sign-out-alt fa-sm fa-fw me-2 text-gray-400"></i> 退出登录</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}"><i class="fas fa-user fa-sm fa-fw me-2 text-gray-400"></i> 账户信息</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}"><i class="fas fa-key fa-sm fa-fw me-2 text-gray-400"></i> 修改密码</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.mfa_manage') }}"><i class="fas fa-shield-alt fa-sm fa-fw me-2 text-gray-400"></i> 两步验证</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('main.settings') }}"><i class="fas fa-cogs fa-sm fa-fw me-2 text-gray-400"></i> 系统设置</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form action="{{ url_for('auth.logout') }}" method="GET">
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="fas fa-sign-out-alt fa-sm fa-fw me-2"></i> 退出登录
+                                </button>
+                            </form>
+                        </li>
                     </ul>
                 </div>
             </div>
         </nav>
         
-        <!-- 闪现消息 -->
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         <div class="row">
@@ -111,17 +119,13 @@
         {% endif %}
         {% endwith %}
         
-        <!-- 页面内容 -->
         {% block content %}{% endblock %}
     </div>
     
-    <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- 主JS -->
     <script>
-        // 侧边栏切换
         document.addEventListener('DOMContentLoaded', function() {
             const sidebarToggle = document.getElementById('sidebarToggle');
             if (sidebarToggle) {
@@ -137,4 +141,4 @@
     
     {% block scripts %}{% endblock %}
 </body>
-</html> 
+</html>

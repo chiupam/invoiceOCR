@@ -1,0 +1,93 @@
+{% extends "auth/base.html" %}
+{% block title %}登录 - 发票OCR管理系统{% endblock %}
+
+{% block subtitle %}<p>请输入密码以访问系统</p>{% endblock %}
+
+{% block content %}
+{% if is_locked %}
+<div class="text-center">
+    <div class="mb-4">
+        <i class="fas fa-lock" style="font-size: 56px; color: #dc3545;"></i>
+    </div>
+    <h5 class="mb-2" style="color: #dc3545;">账户已锁定</h5>
+    <p class="text-muted mb-1" style="font-size: 14px;">由于连续输入错误密码，账户已被临时锁定</p>
+    <div class="alert alert-warning mt-3 mb-3" style="border-radius: 10px;">
+        <i class="fas fa-clock me-2"></i>
+        剩余锁定时间：<strong id="countdown" style="font-size: 20px; font-family: monospace;">--:--</strong>
+    </div>
+    <p class="text-muted" style="font-size: 13px;">锁定结束后页面将自动刷新，届时可重新输入密码</p>
+    <form method="POST" action="{{ url_for('auth.login') }}" style="display:none;">
+        {{ form.hidden_tag() }}
+        {{ form.password }}
+        {{ form.remember }}
+        {{ form.submit }}
+    </form>
+</div>
+{% else %}
+<form method="POST" action="{{ url_for('auth.login') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+        <label for="password" class="form-label fw-bold" style="font-size: 14px;">访问密码</label>
+        <div class="input-group">
+            {{ form.password(class="form-control", placeholder="请输入密码", autocomplete="current-password", id="password", style="border-radius: 10px 0 0 10px; padding: 12px 14px; height: 52px;") }}
+            <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('password', this)" style="border-radius: 0 10px 10px 0;">
+                <i class="fas fa-eye"></i>
+            </button>
+        </div>
+        {% if form.password.errors %}
+            {% for error in form.password.errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <div class="form-check mb-3">
+        {{ form.remember(class="form-check-input") }}
+        <label class="form-check-label" for="remember">记住我（30天内免登录）</label>
+    </div>
+
+    {{ form.submit(class="btn btn-auth") }}
+</form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if is_locked %}
+<script>
+(function() {
+    let remaining = {{ lock_remaining }};
+    const countdownEl = document.getElementById('countdown');
+
+    function updateDisplay() {
+        if (remaining <= 0) {
+            countdownEl.textContent = '00:00';
+            window.location.reload();
+            return;
+        }
+        const min = Math.floor(remaining / 60);
+        const sec = remaining % 60;
+        countdownEl.textContent = String(min).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+        remaining--;
+        setTimeout(updateDisplay, 1000);
+    }
+
+    updateDisplay();
+})();
+</script>
+{% else %}
+<script>
+function togglePwd(id, btn) {
+    const input = document.getElementById(id);
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+}
+</script>
+{% endif %}
+{% endblock %}

@@ -2,13 +2,15 @@
 # -*- coding: utf-8 -*-
 
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 class Config:
     """基础配置类"""
-    # 应用根目录
     BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-    
-    # 密钥配置
+
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard-to-guess-string'
     
     # 数据库配置

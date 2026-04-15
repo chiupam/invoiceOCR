@@ -15,6 +15,7 @@
                         <div class="col-md-6 offset-md-3">
                             <div class="upload-container">
                                 <form method="POST" enctype="multipart/form-data" class="upload-form" id="uploadForm">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <!-- 选择项目 -->
                                     <div class="form-group">
                                         <label for="project_id">项目分类</label>

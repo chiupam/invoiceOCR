@@ -2,7 +2,42 @@
 
 ## 版本历史
 
-### v1.3 (最新版本)
+### v1.4 (最新版本)
+
+#### 🔐 用户认证与安全体系
+- **登录认证系统**: 新增完整的用户登录认证（Flask-Login + bcrypt），仅密码登录，无需用户名
+- **首次密码设置**: 新增首次启动密码设置流程，含密码强度实时检测和确认机制
+- **TOTP两步验证**: 新增MFA两步验证（pyotp），兼容Google Authenticator，支持QR码绑定
+- **账户锁定机制**: 5次密码错误自动锁定15分钟，锁定期间禁用登录表单+实时倒计时+自动刷新解锁
+- **请求限流**: 新增Flask-Limiter限流（GET 60/min, POST 20/min），防暴力破解
+- **CSRF全局防护**: 新增Flask-WTF CSRFProtect，保护所有表单和AJAX请求
+- **会话安全**: 配置HttpOnly + Secure + SameSite=Lax，7天会话过期
+- **安全审计日志**: 新增`data/logs/security.log`，记录所有安全敏感操作
+
+#### 🛡️ CLI管理工具
+- **应急解锁**: 新增`flask unlock-admin`命令，SSH登录服务器即可解锁被锁定账户
+- **账户重置**: 新增`flask reset-account`命令，支持忘记密码时重置到无用户状态
+- **CLI加固**: `flask create-admin`命令增加单用户限制，已有用户时拒绝执行
+
+#### 🔒 安全增强
+- **密码存储升级**: 从pbkdf2:sha256升级为bcrypt，兼容旧哈希自动迁移
+- **API密钥脱敏**: Settings页面密钥以password类型显示，支持显示/隐藏切换
+- **CSRF Token**: 所有POST表单和AJAX请求添加CSRF Token
+- **429友好提示**: 新增429限流中文提示页面
+
+#### 📁 项目结构调整
+- 新增`app/auth.py`认证蓝图（登录/设置/MFA/密码管理）
+- 新增`app/templates/auth/`认证模板目录（8个模板文件）
+- 新增`app/templates/errors/429.html`限流错误页面
+- 新增`data/logs/`安全审计日志目录
+- `app/models.py`新增User模型（含MFA/锁定/审计字段）
+- `app/__init__.py`集成Flask-Login/CSRFProtect/Limiter初始化
+- `app/routes.py`所有路由添加`@login_required`保护
+- `run.py`新增CLI命令和安全审计日志配置
+
+---
+
+### v1.3
 #### 💡 新增功能
 - **手动创建发票**: 无需上传图片即可直接录入发票信息
 - **项目详情优化**: 完善了项目详情页面和导航逻辑
@@ -59,9 +94,16 @@
 
 在未来的版本中，我们计划添加以下功能：
 
-- 用户认证与权限管理
 - 多种发票类型支持
 - 数据分析与报表生成
 - 数据导入功能
 - 自定义发票分类规则
-- API接口开放，支持第三方集成 
+- API接口开放，支持第三方集成
+
+---
+
+## 👤 作者
+
+- GitHub: [chiupam](https://github.com/chiupam)
+- ✈️ Telegram: [@Chiupam](https://t.me/Chiupam)
+- 📧 Email: [chiupam@126.com](mailto:chiupam@126.com)

@@ -1,0 +1,171 @@
+{% extends "auth/base.html" %}
+{% block title %}初始化设置 - 发票OCR管理系统{% endblock %}
+
+{% block subtitle %}
+<p>首次使用，请设置您的访问密码</p>
+<p class="text-muted" style="font-size: 12px;"><i class="fas fa-lock me-1"></i>本系统为个人专用，仅需设置一次密码</p>
+{% endblock %}
+
+{% block content %}
+<div class="text-center mb-3">
+    <div class="d-flex justify-content-center align-items-center" style="gap: 8px;">
+        <span class="badge rounded-pill bg-primary px-3 py-2" style="font-size: 13px;">第1步 设置密码</span>
+        <i class="fas fa-chevron-right text-muted" style="font-size: 10px;"></i>
+        <span class="badge rounded-pill bg-light text-muted px-3 py-2" style="font-size: 13px;">第2步 开始使用</span>
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('auth.setup') }}" novalidate id="setupForm">
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+        <label for="password" class="form-label fw-bold" style="font-size: 14px;">设置密码</label>
+        <div class="input-group">
+            {{ form.password(class="form-control", placeholder="请输入密码（至少8位）", autocomplete="new-password", id="password", style="border-radius: 10px 0 0 10px; padding: 12px 14px;") }}
+            <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('password', this)" style="border-radius: 0 10px 10px 0;">
+                <i class="fas fa-eye"></i>
+            </button>
+        </div>
+        {% if form.password.errors %}
+            {% for error in form.password.errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div id="strengthBar" class="progress mt-2" style="height: 6px; border-radius: 3px;">
+            <div id="strengthFill" class="progress-bar" role="progressbar" style="width: 0%; transition: all 0.3s;"></div>
+        </div>
+        <div id="strengthText" class="mt-1" style="font-size: 12px; color: #888;"></div>
+
+        <div id="pwdChecks" class="mt-2" style="font-size: 12px;">
+            <div id="checkLen" class="text-muted"><i class="fas fa-circle me-1" style="font-size: 6px; vertical-align: middle;"></i>至少8个字符</div>
+            <div id="checkLetter" class="text-muted"><i class="fas fa-circle me-1" style="font-size: 6px; vertical-align: middle;"></i>包含字母</div>
+            <div id="checkNum" class="text-muted"><i class="fas fa-circle me-1" style="font-size: 6px; vertical-align: middle;"></i>包含数字</div>
+            <div id="checkSpecial" class="text-muted"><i class="fas fa-circle me-1" style="font-size: 6px; vertical-align: middle;"></i>包含特殊字符（推荐）</div>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label for="password2" class="form-label fw-bold" style="font-size: 14px;">确认密码</label>
+        <div class="input-group">
+            {{ form.password2(class="form-control", placeholder="请再次输入密码", autocomplete="new-password", id="password2", style="border-radius: 10px 0 0 10px; padding: 12px 14px;") }}
+            <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('password2', this)" style="border-radius: 0 10px 10px 0;">
+                <i class="fas fa-eye"></i>
+            </button>
+        </div>
+        {% if form.password2.errors %}
+            {% for error in form.password2.errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
+        {% endif %}
+        <div id="matchHint" class="mt-1" style="font-size: 12px;"></div>
+    </div>
+
+    <div class="alert alert-light mb-3" style="font-size: 12px; border-radius: 10px; padding: 10px 14px;">
+        <i class="fas fa-shield-alt text-primary me-1"></i>
+        您的密码将使用 <strong>bcrypt</strong> 算法加密存储，系统不会保存明文密码。请妥善保管您的密码，忘记密码将需要重置数据库。
+    </div>
+
+    {{ form.submit(class="btn btn-auth") }}
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePwd(id, btn) {
+    const input = document.getElementById(id);
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+}
+
+function checkStrength(pwd) {
+    let score = 0;
+    const hasLen = pwd.length >= 8;
+    const hasLetter = /[A-Za-z]/.test(pwd);
+    const hasNum = /[0-9]/.test(pwd);
+    const hasSpecial = /[^A-Za-z0-9]/.test(pwd);
+    const hasUpper = /[A-Z]/.test(pwd);
+    const hasLower = /[a-z]/.test(pwd);
+
+    if (hasLen) score++;
+    if (hasLetter) score++;
+    if (hasNum) score++;
+    if (hasSpecial) score++;
+    if (hasUpper && hasLower) score++;
+    if (pwd.length >= 12) score++;
+
+    return { score, hasLen, hasLetter, hasNum, hasSpecial };
+}
+
+function updateCheck(id, pass) {
+    const el = document.getElementById(id);
+    const icon = el.querySelector('i');
+    if (pass) {
+        el.className = 'text-success';
+        icon.className = 'fas fa-check-circle me-1';
+        icon.style.fontSize = '';
+    } else {
+        el.className = 'text-muted';
+        icon.className = 'fas fa-circle me-1';
+        icon.style.fontSize = '6px';
+    }
+}
+
+document.getElementById('password').addEventListener('input', function() {
+    const pwd = this.value;
+    const { score, hasLen, hasLetter, hasNum, hasSpecial } = checkStrength(pwd);
+
+    updateCheck('checkLen', hasLen);
+    updateCheck('checkLetter', hasLetter);
+    updateCheck('checkNum', hasNum);
+    updateCheck('checkSpecial', hasSpecial);
+
+    const fill = document.getElementById('strengthFill');
+    const text = document.getElementById('strengthText');
+
+    if (pwd.length === 0) {
+        fill.style.width = '0%';
+        fill.className = 'progress-bar';
+        text.textContent = '';
+    } else if (score <= 2) {
+        fill.style.width = '25%';
+        fill.className = 'progress-bar bg-danger';
+        text.textContent = '密码强度：弱';
+        text.style.color = '#dc3545';
+    } else if (score <= 4) {
+        fill.style.width = '55%';
+        fill.className = 'progress-bar bg-warning';
+        text.textContent = '密码强度：中等';
+        text.style.color = '#ffc107';
+    } else {
+        fill.style.width = '85%';
+        fill.className = 'progress-bar bg-success';
+        text.textContent = '密码强度：强';
+        text.style.color = '#198754';
+    }
+
+    checkMatch();
+});
+
+document.getElementById('password2').addEventListener('input', checkMatch);
+
+function checkMatch() {
+    const pwd = document.getElementById('password').value;
+    const pwd2 = document.getElementById('password2').value;
+    const hint = document.getElementById('matchHint');
+    if (pwd2.length === 0) {
+        hint.textContent = '';
+    } else if (pwd === pwd2) {
+        hint.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>密码一致</span>';
+    } else {
+        hint.innerHTML = '<span class="text-danger"><i class="fas fa-times-circle me-1"></i>密码不一致</span>';
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "auth/base.html" %}
+{% block title %}两步验证管理 - 发票OCR管理系统{% endblock %}
+
+{% block subtitle %}<p>两步验证管理</p>{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    {% if mfa_enabled %}
+    <i class="fas fa-check-circle mb-3" style="font-size: 56px; color: #28a745;"></i>
+    <h5 class="mb-2">两步验证已启用</h5>
+    <p class="text-muted mb-4" style="font-size: 14px;">您的账户已受两步验证保护，每次登录时需要输入验证码。</p>
+
+    {% if just_enabled %}
+    <div class="alert alert-success text-start" style="font-size: 14px;">
+        <strong>重要提示：</strong>请确保您已将身份验证器应用中的账户妥善保存。如果丢失验证器，您将无法登录系统。
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('auth.mfa_manage') }}" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="disable">
+        <button type="submit" class="btn btn-outline-danger w-100" style="border-radius: 10px; padding: 10px;" onclick="return confirm('确定要关闭两步验证吗？这将降低账户安全性。')">
+            <i class="fas fa-shield-alt me-2"></i>关闭两步验证
+        </button>
+    </form>
+
+    {% else %}
+    <i class="fas fa-shield-alt mb-3" style="font-size: 56px; color: #ffc107;"></i>
+    <h5 class="mb-2">两步验证未启用</h5>
+    <p class="text-muted mb-4" style="font-size: 14px;">启用两步验证可为您的账户增加额外的安全保护层。</p>
+    <a href="{{ url_for('auth.mfa_setup') }}" class="btn btn-auth" style="text-decoration: none;">
+        <i class="fas fa-plus-circle me-2"></i>启用两步验证
+    </a>
+    {% endif %}
+</div>
+
+<div class="auth-footer mt-4">
+    <a href="{{ url_for('auth.profile') }}"><i class="fas fa-arrow-left me-1"></i>返回个人资料</a>
+</div>
+{% endblock %}

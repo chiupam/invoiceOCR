@@ -12,6 +12,7 @@
                 </div>
                 <div class="card-body">
                     <form method="post">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
                             <label for="name" class="form-label">项目名称</label>
                             <input type="text" class="form-control" id="name" name="name" value="{{ project.name if project else '' }}" required>
