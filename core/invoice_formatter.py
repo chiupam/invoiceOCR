@@ -50,12 +50,24 @@ class InvoiceFormatter:
             
             # 判断发票类型并格式化
             if "VatInvoiceInfos" in response_json["Response"]:
+                confidence_map = {}
+                for item in response_json["Response"]["VatInvoiceInfos"]:
+                    name = item.get("Name", "")
+                    conf = item.get("Confidence", None)
+                    if name and conf is not None:
+                        confidence_map[name] = conf
+
                 if "普通发票" in invoice_type:
                     logger.info("识别为增值税普通发票，使用普通发票格式化")
-                    return InvoiceFormatter._format_general_invoice(response_json)
+                    result = InvoiceFormatter._format_general_invoice(response_json)
                 else:
                     logger.info("识别为增值税专用发票，使用专用发票格式化")
-                    return InvoiceFormatter._format_vat_invoice(response_json)
+                    result = InvoiceFormatter._format_vat_invoice(response_json)
+
+                if confidence_map:
+                    result['置信度'] = confidence_map
+
+                return result
             else:
                 logger.warning("未找到VatInvoiceInfos字段，尝试作为普通发票处理")
                 return InvoiceFormatter._format_general_invoice(response_json)

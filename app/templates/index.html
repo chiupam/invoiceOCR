@@ -4,6 +4,16 @@
 
 {% block content %}
 <div class="container-fluid">
+    {% if not api_configured %}
+    <div class="alert alert-warning alert-dismissible fade show d-flex align-items-center" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <div>
+            <strong>API未配置</strong> — 腾讯云OCR API密钥尚未设置，发票识别功能暂不可用。
+            <a href="{{ url_for('main.settings') }}" class="alert-link fw-bold">前往配置 →</a>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
     <!-- 顶部操作按钮 -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0 text-gray-800">

@@ -7,7 +7,7 @@ import sys
 import time
 import base64
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 # 添加项目根目录到Python路径，以便能够正确导入app模块
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -15,8 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from tencentcloud.common import credential
 from tencentcloud.common.profile.client_profile import ClientProfile
 from tencentcloud.common.profile.http_profile import HttpProfile
-from tencentcloud.common.exception.tencent_cloud_sdk_exception import TencentCloudSDKException
-from tencentcloud.ocr.v20181119 import ocr_client, models
+from tencentcloud.ocr.v20181119 import ocr_client
 from dotenv import load_dotenv
 
 # 加载环境变量
@@ -116,28 +115,16 @@ class OCRClient:
         # 调用API
         return self._call_api(action, request_data)
     
-    def _call_api(self, action, request_data):
-        """
-        调用API通用方法
-        
-        参数:
-            action: API操作类型
-            request_data: 请求数据
-            
-        返回:
-            API返回的JSON字符串
-        """
-        # 将请求数据转为JSON字符串
+    def _call_api(self, action, request_data, max_retries=3, timeout=30):
         payload = json.dumps(request_data)
-        
-        # ************* 步骤 1：拼接规范请求串 *************
+
         http_request_method = "POST"
         canonical_uri = "/"
         canonical_querystring = ""
-        
+
         timestamp = int(time.time())
-        date = datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d')
-        
+        date = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime('%Y-%m-%d')
+
         algorithm = "TC3-HMAC-SHA256"
         ct = "application/json; charset=utf-8"
         canonical_headers = "content-type:%s\nhost:%s\nx-tc-action:%s\n" % (ct, self.httpProfile.endpoint, action.lower())
@@ -150,7 +137,6 @@ class OCRClient:
                              signed_headers + "\n" +
                              hashed_request_payload)
 
-        # ************* 步骤 2：拼接待签名字符串 *************
         credential_scope = date + "/" + "ocr" + "/" + "tc3_request"
         hashed_canonical_request = hashlib.sha256(canonical_request.encode("utf-8")).hexdigest()
         string_to_sign = (algorithm + "\n" +
@@ -158,23 +144,19 @@ class OCRClient:
                          credential_scope + "\n" +
                          hashed_canonical_request)
 
-        # ************* 步骤 3：计算签名 *************
-        # 从credential对象获取secret_id和secret_key
         secret_id = self.cred.secretId
         secret_key = self.cred.secretKey
-        
+
         secret_date = sign(("TC3" + secret_key).encode("utf-8"), date)
         secret_service = sign(secret_date, "ocr")
         secret_signing = sign(secret_service, "tc3_request")
         signature = hmac.new(secret_signing, string_to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
 
-        # ************* 步骤 4：拼接 Authorization *************
         authorization = (algorithm + " " +
                          "Credential=" + secret_id + "/" + credential_scope + ", " +
                          "SignedHeaders=" + signed_headers + ", " +
                          "Signature=" + signature)
 
-        # ************* 步骤 5：构造并发起请求 *************
         headers = {
             "Authorization": authorization,
             "Content-Type": "application/json; charset=utf-8",
@@ -184,13 +166,26 @@ class OCRClient:
             "X-TC-Version": "2018-11-19"
         }
 
-        try:
-            req = HTTPSConnection(self.httpProfile.endpoint)
-            req.request("POST", "/", headers=headers, body=payload.encode("utf-8"))
-            resp = req.getresponse()
-            return resp.read().decode("utf-8")
-        except Exception as err:
-            raise Exception(f"API请求失败: {err}")
+        last_error = None
+        for attempt in range(max_retries):
+            conn = None
+            try:
+                conn = HTTPSConnection(self.httpProfile.endpoint, timeout=timeout)
+                conn.request("POST", "/", headers=headers, body=payload.encode("utf-8"))
+                resp = conn.getresponse()
+                result = resp.read().decode("utf-8")
+                return result
+            except Exception as err:
+                last_error = err
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 2
+                    time.sleep(wait_time)
+                continue
+            finally:
+                if conn:
+                    conn.close()
+
+        raise Exception(f"API请求失败(重试{max_retries}次): {last_error}")
 
 
 # 如果直接运行此脚本

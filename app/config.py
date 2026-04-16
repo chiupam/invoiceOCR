@@ -2,69 +2,98 @@
 # -*- coding: utf-8 -*-
 
 import os
+import secrets
+import logging
 from dotenv import load_dotenv
+
 
 load_dotenv()
 
 
+def get_env():
+    """检测当前运行环境，优先级：APP_ENV > FLASK_ENV > FLASK_CONFIG > development"""
+    env = os.environ.get('APP_ENV') or os.environ.get('FLASK_ENV') or os.environ.get('FLASK_CONFIG')
+    if env and env.lower() in ('production', 'prod', 'testing', 'test', 'development', 'dev'):
+        return {'prod': 'production', 'test': 'testing', 'dev': 'development'}.get(env.lower(), env)
+    return 'development'
+
+
 class Config:
-    """基础配置类"""
     BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard-to-guess-string'
-    
-    # 数据库配置
+    SECRET_KEY = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
+
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         'sqlite:///' + os.path.join(BASE_DIR, 'data', 'invoices.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    
-    # 上传文件配置
+
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'app', 'static', 'uploads')
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 最大16MB
-    
-    # OCR API 配置
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024
+
     TENCENT_SECRET_ID = os.environ.get('TENCENT_SECRET_ID', '')
     TENCENT_SECRET_KEY = os.environ.get('TENCENT_SECRET_KEY', '')
-    
-    # 输出目录
+
     OUTPUT_DIR = os.path.join(BASE_DIR, 'data', 'output')
-    
+
     @staticmethod
     def init_app(app):
-        """初始化应用"""
-        # 确保上传和输出目录存在
         os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
         os.makedirs(Config.OUTPUT_DIR, exist_ok=True)
 
 
 class DevelopmentConfig(Config):
-    """开发环境配置"""
     DEBUG = True
+    TESTING = False
+    LOG_LEVEL = logging.DEBUG
 
 
 class TestingConfig(Config):
-    """测试环境配置"""
     TESTING = True
+    DEBUG = False
+    WTF_CSRF_ENABLED = False
+    LOG_LEVEL = logging.WARNING
     SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(Config.BASE_DIR, 'data', 'test-invoices.db')
 
 
 class ProductionConfig(Config):
-    """生产环境配置"""
     DEBUG = False
-    
-    # 在生产环境中设置更安全的密钥
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'difficult-to-guess-and-secure-key'
-    
-    # 生产环境数据库配置
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(Config.BASE_DIR, 'data', 'invoices.db')
+    TESTING = False
+    LOG_LEVEL = logging.INFO
+
+    @classmethod
+    def init_app(cls, app):
+        super().init_app(app)
+
+        if not os.environ.get('SECRET_KEY'):
+            raise RuntimeError(
+                "生产环境必须设置 SECRET_KEY 环境变量。\n"
+                "生成方法: python3 -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+
+        import logging
+        from logging.handlers import RotatingFileHandler
+
+        log_dir = os.path.join(cls.BASE_DIR, 'data', 'logs')
+        os.makedirs(log_dir, exist_ok=True)
+        file_handler = RotatingFileHandler(
+            os.path.join(log_dir, 'app.log'),
+            maxBytes=10 * 1024 * 1024,
+            backupCount=10,
+            encoding='utf-8'
+        )
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+        ))
+        file_handler.setLevel(cls.LOG_LEVEL)
+        app.logger.addHandler(file_handler)
+        app.logger.setLevel(cls.LOG_LEVEL)
 
 
-# 配置字典
-config = {
+config_map = {
     'development': DevelopmentConfig,
     'testing': TestingConfig,
     'production': ProductionConfig,
-    'default': DevelopmentConfig
-} 
+}
+
+default_config = config_map[get_env()]

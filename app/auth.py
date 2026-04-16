@@ -3,14 +3,17 @@
 
 import io
 import re
+import base64
 import qrcode
+from datetime import datetime
+from urllib.parse import urlparse
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_wtf import FlaskForm
-from wtforms import PasswordField, BooleanField, SubmitField
-from wtforms.validators import DataRequired, EqualTo, Length, ValidationError
+from wtforms import PasswordField, BooleanField, SubmitField, StringField
+from wtforms.validators import DataRequired, EqualTo, Length, ValidationError, Optional
 from app import limiter
-from app.models import db, User
+from app.models import db, User, Settings
 
 auth = Blueprint('auth', __name__)
 
@@ -30,6 +33,8 @@ class SetupForm(FlaskForm):
         DataRequired(message='请再次输入密码'),
         EqualTo('password', message='两次输入的密码不一致')
     ])
+    tencent_secret_id = StringField('SecretId', validators=[Optional()])
+    tencent_secret_key = StringField('SecretKey', validators=[Optional()])
     submit = SubmitField('完成设置')
 
     def validate_password(self, field):
@@ -81,15 +86,14 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
 
-    if not User.get_owner():
+    user = User.get_owner()
+    if not user:
         return redirect(url_for('auth.setup'))
 
-    user = User.get_owner()
-    is_locked = user.is_locked() if user else False
+    is_locked = user.is_locked()
     lock_remaining = 0
 
     if is_locked and user.locked_until:
-        from datetime import datetime
         delta = user.locked_until - datetime.now()
         lock_remaining = max(0, int(delta.total_seconds()))
 
@@ -120,8 +124,10 @@ def login():
         flash('登录成功', 'success')
 
         next_page = request.args.get('next')
-        if next_page and not next_page.startswith('/'):
-            next_page = None
+        if next_page:
+            parsed = urlparse(next_page)
+            if parsed.netloc or not parsed.path.startswith('/'):
+                next_page = None
         return redirect(next_page or url_for('main.index'))
 
     return render_template('auth/login.html', form=form, is_locked=is_locked, lock_remaining=lock_remaining)
@@ -137,7 +143,7 @@ def mfa_verify():
     if not mfa_user_id:
         return redirect(url_for('auth.login'))
 
-    user = User.query.get(mfa_user_id)
+    user = db.session.get(User, mfa_user_id)
     if not user or not user.mfa_enabled:
         session.pop('mfa_user_id', None)
         return redirect(url_for('auth.login'))
@@ -178,12 +184,33 @@ def setup():
             )
             user.set_password(form.password.data)
             db.session.add(user)
+
+            tencent_secret_id = form.tencent_secret_id.data.strip() if form.tencent_secret_id.data else ''
+            tencent_secret_key = form.tencent_secret_key.data.strip() if form.tencent_secret_key.data else ''
+            if tencent_secret_id:
+                existing = Settings.query.filter_by(key='TENCENT_SECRET_ID').first()
+                if existing:
+                    existing.value = tencent_secret_id
+                else:
+                    db.session.add(Settings(key='TENCENT_SECRET_ID', value=tencent_secret_id))
+            if tencent_secret_key:
+                existing = Settings.query.filter_by(key='TENCENT_SECRET_KEY').first()
+                if existing:
+                    existing.value = tencent_secret_key
+                else:
+                    db.session.add(Settings(key='TENCENT_SECRET_KEY', value=tencent_secret_key))
+
             db.session.commit()
 
             login_user(user, remember=True)
             user.record_login(request.remote_addr)
             session.permanent = True
-            flash('账户设置成功，欢迎使用发票OCR系统', 'success')
+
+            if tencent_secret_id and tencent_secret_key:
+                flash('账户设置成功，API已配置，欢迎使用发票OCR系统', 'success')
+            else:
+                flash('账户设置成功，请前往系统设置配置腾讯云API密钥以启用OCR识别功能', 'warning')
+
             return redirect(url_for('main.index'))
         except Exception as e:
             db.session.rollback()
@@ -223,6 +250,7 @@ def change_password():
         db.session.commit()
         flash('密码修改成功，请重新登录', 'success')
         logout_user()
+        session.clear()
         return redirect(url_for('auth.login'))
 
     return render_template('auth/change_password.html', form=form)
@@ -259,7 +287,6 @@ def mfa_setup():
     img = qr.make_image(fill_color="black", back_color="white")
     buf = io.BytesIO()
     img.save(buf, format='PNG')
-    import base64
     qr_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
 
     return render_template('auth/mfa_setup.html', form=form, qr_b64=qr_b64, secret=current_user.mfa_secret)

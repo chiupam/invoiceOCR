@@ -1,28 +1,17 @@
 # Web框架和核心扩展
 Flask>=2.0.0
 Flask-SQLAlchemy>=2.5.1
+Flask-Migrate>=4.0.0
 Flask-Bootstrap>=3.3.7
 Flask-Moment>=1.0.2
 Flask-APScheduler
 Flask-Login>=0.6.3
 Flask-WTF>=1.2.1
 Flask-Limiter>=3.5.0
-email-validator>=2.1.0
 
 # 数据处理
 pandas>=1.3.0
 openpyxl>=3.0.7
-xlsxwriter>=3.0.3
-
-# HTTP请求
-requests>=2.26.0
-
-# 图像处理
-Pillow>=8.3.0
-opencv-python>=4.5.3
-
-# PDF处理
-PyPDF2>=1.26.0
 
 # OCR服务
 tencentcloud-sdk-python
@@ -34,7 +23,6 @@ qrcode>=7.4
 
 # 工具
 python-dotenv>=0.19.0
-pytz
 
 # 部署工具
 gunicorn>=20.1.0

@@ -65,11 +65,11 @@ log/
 .flaskenv
 !.env.example
 
-# Uploaded files
+# Uploaded files (user data, never commit)
 app/static/uploads/*
 !app/static/uploads/.gitkeep
 
-# Generated files
+# Generated files (runtime output, never commit)
 data/output/*
 !data/output/.gitkeep
 *.out
@@ -93,4 +93,11 @@ desktop.ini
 # Temporary files
 *.tmp
 temp/
-tmp/ 
+tmp/
+
+# Data directory (runtime data, never commit)
+data/*.db
+data/backup/
+
+# Trae IDE
+.trae/

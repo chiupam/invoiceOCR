@@ -11,12 +11,17 @@ services:
       - ./data:/app/data
       - ./app/static/uploads:/app/app/static/uploads
     environment:
-      - FLASK_APP=run.py
-      - FLASK_ENV=production
-      # 注意：API密钥现在通过Web界面设置页面配置，不再需要环境变量
+      - APP_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-}
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     networks:
       - invoice_ocr_network
 
 networks:
   invoice_ocr_network:
-    driver: bridge 
+    driver: bridge

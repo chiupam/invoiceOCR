@@ -15,12 +15,20 @@
                         </a>
                         <form id="quickUploadForm" action="{{ url_for('main.quick_upload') }}" method="POST" enctype="multipart/form-data" style="display:none;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="file" name="invoice_file" id="quickFileInput" accept="image/*">
+                            <input type="file" name="invoice_file" id="quickFileInput" accept="image/*,.pdf">
                             <input type="hidden" name="project_id" value="{{ invoice.project_id }}">
                         </form>
                         <a href="{{ url_for('main.invoice_edit', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-edit"></i> 编辑发票
                         </a>
+                        {% if invoice.image_path %}
+                        <form id="rerecognizeForm" action="{{ url_for('main.invoice_rerecognize', invoice_id=invoice.id) }}" method="POST" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('确认要重新识别此发票吗？当前数据将被更新。')">
+                                <i class="fas fa-sync-alt"></i> 重新识别
+                            </button>
+                        </form>
+                        {% endif %}
                         <div class="btn-group">
                             <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-download"></i> 导出
@@ -141,6 +149,30 @@
                                             <th>更新时间</th>
                                             <td>{{ invoice.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                                         </tr>
+                                        {% if confidence_data %}
+                                        <tr>
+                                            <th>识别置信度</th>
+                                            <td>
+                                                <div class="d-flex flex-wrap gap-1">
+                                                {% for field_name, conf in confidence_data.items() %}
+                                                    {% if conf >= 90 %}
+                                                    <span class="badge bg-success" title="{{ field_name }}">{{ field_name }}: {{ conf }}%</span>
+                                                    {% elif conf >= 80 %}
+                                                    <span class="badge bg-warning text-dark" title="{{ field_name }}">{{ field_name }}: {{ conf }}%</span>
+                                                    {% else %}
+                                                    <span class="badge bg-danger" title="{{ field_name }}">{{ field_name }}: {{ conf }}%</span>
+                                                    {% endif %}
+                                                {% endfor %}
+                                                </div>
+                                                <small class="text-muted mt-1 d-block">
+                                                    <i class="fas fa-info-circle"></i>
+                                                    <span class="badge bg-success" style="font-size:0.7em">≥90% 可信</span>
+                                                    <span class="badge bg-warning text-dark" style="font-size:0.7em">80-90% 建议核对</span>
+                                                    <span class="badge bg-danger" style="font-size:0.7em">&lt;80% 需重点校验</span>
+                                                </small>
+                                            </td>
+                                        </tr>
+                                        {% endif %}
                                     </tbody>
                                 </table>
                             </div>
@@ -460,20 +492,18 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (files.length) {
                 const file = files[0];
-                // 检查是否为图片文件
-                if (!file.type.match('image.*')) {
-                    alert('请上传图片文件（JPG、PNG或GIF）');
+                if (!file.type.match('image.*') && file.type !== 'application/pdf') {
+                    alert('请上传图片或PDF文件');
                     return;
                 }
                 
-                // 设置文件到input
-                fileInput.files = files;
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
                 
-                // 显示加载状态
                 this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
                 this.disabled = true;
                 
-                // 提交表单
                 uploadForm.submit();
             }
         });

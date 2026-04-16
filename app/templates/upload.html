@@ -88,20 +88,14 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">处理中</h5>
+                <h5 class="modal-title">批量上传进度</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭" onclick="window.location.href='/'"></button>
             </div>
-            <div class="modal-body text-center">
-                <div class="mb-3">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">正在处理...</span>
-                    </div>
-                </div>
-                <p>正在处理第 <span id="currentFileNum">0</span> 个文件，共 <span id="totalFileNum">0</span> 个</p>
-                <div class="progress">
+            <div class="modal-body">
+                <div class="progress mb-3">
                     <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
                 </div>
-                <p class="mt-2 text-muted small">批量处理可能需要一些时间，请不要关闭页面</p>
+                <div id="fileListContainer" style="max-height: 300px; overflow-y: auto;"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="window.location.href='/'">取消并返回</button>

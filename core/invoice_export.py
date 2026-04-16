@@ -34,7 +34,6 @@ class InvoiceExporter:
         seller_info = invoice_data.get('销售方信息', {})
         buyer_info = invoice_data.get('购买方信息', {})
         amount_info = invoice_data.get('金额信息', {})
-        other_info = invoice_data.get('其他信息', {})
         
         # 准备表头和基本数据行
         headers = [
@@ -245,11 +244,6 @@ class InvoiceExporter:
         """
         try:
             import pandas as pd
-            import numpy as np
-            from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
-            from openpyxl.utils import get_column_letter
-            from openpyxl.chart import BarChart, PieChart, Reference
-            from openpyxl.chart.label import DataLabelList
         except ImportError:
             print("导出Excel格式需要安装pandas和openpyxl库")
             print("请运行: pip install pandas openpyxl")
@@ -325,10 +319,9 @@ class InvoiceExporter:
                     try:
                         amount = float(invoice.get_total_amount_decimal())
                         monthly_stats[month_key]['amount'] += amount
-                    except:
+                    except (ValueError, TypeError):
                         pass
                 
-                # 按发票类型统计
                 if invoice.invoice_type:
                     type_key = invoice.invoice_type
                     if type_key not in invoice_type_stats:
@@ -337,10 +330,9 @@ class InvoiceExporter:
                     try:
                         amount = float(invoice.get_total_amount_decimal())
                         invoice_type_stats[type_key]['amount'] += amount
-                    except:
+                    except (ValueError, TypeError):
                         pass
                 
-                # 按销售方统计
                 if invoice.seller_name:
                     if invoice.seller_name not in seller_stats:
                         seller_stats[invoice.seller_name] = {'count': 0, 'amount': 0}
@@ -348,10 +340,9 @@ class InvoiceExporter:
                     try:
                         amount = float(invoice.get_total_amount_decimal())
                         seller_stats[invoice.seller_name]['amount'] += amount
-                    except:
+                    except (ValueError, TypeError):
                         pass
                 
-                # 按购买方统计
                 if invoice.buyer_name:
                     if invoice.buyer_name not in buyer_stats:
                         buyer_stats[invoice.buyer_name] = {'count': 0, 'amount': 0}
@@ -359,7 +350,7 @@ class InvoiceExporter:
                     try:
                         amount = float(invoice.get_total_amount_decimal())
                         buyer_stats[invoice.buyer_name]['amount'] += amount
-                    except:
+                    except (ValueError, TypeError):
                         pass
             
             # 写入发票列表（按开票日期排序，早的在前）
@@ -377,10 +368,9 @@ class InvoiceExporter:
             # 计算金额、税额和价税合计的总和
             for col in ['金额', '税额', '价税合计']:
                 try:
-                    # 提取数字部分计算总和
                     numeric_values = invoice_list_df[col].str.replace('¥', '').str.strip().astype(float)
                     total_row[col] = f"¥{numeric_values.sum():.2f}"
-                except:
+                except (ValueError, TypeError):
                     total_row[col] = ''
             
             # 添加合计行
@@ -426,7 +416,7 @@ class InvoiceExporter:
                     try:
                         numeric_values = items_df[col].str.replace('¥', '').str.strip().astype(float)
                         items_total[col] = f"¥{numeric_values.sum():.2f}"
-                    except:
+                    except (ValueError, TypeError):
                         items_total[col] = ''
                 
                 # 添加合计行到商品明细表

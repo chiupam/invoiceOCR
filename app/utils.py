@@ -4,6 +4,7 @@
 import os
 import uuid
 import json
+import shutil
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from flask import current_app
@@ -15,6 +16,31 @@ from core.invoice_export import InvoiceExporter
 
 # 导入数据库模型
 from .models import db, Invoice, InvoiceItem, Project
+
+
+class PaginationObj:
+    def __init__(self, items, page, per_page, total):
+        self.items = items
+        self.page = page
+        self.per_page = per_page
+        self.total = total
+        self.pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+        self.prev_num = page - 1 if page > 1 else None
+        self.next_num = page + 1 if page < self.pages else None
+        self.has_prev = page > 1
+        self.has_next = page < self.pages
+
+    def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
+        last = 0
+        for num in range(1, self.pages + 1):
+            if num <= left_edge or \
+               (num > self.page - left_current - 1 and
+                num < self.page + right_current) or \
+               num > self.pages - right_edge:
+                if last + 1 != num:
+                    yield None
+                yield num
+                last = num
 
 
 def allowed_file(filename):
@@ -98,7 +124,6 @@ def process_invoice_image(image_path, project_id=None):
         }
         
         # 处理日期
-        invoice_date_raw = formatted_data.get('基本信息', {}).get('开票日期', '')
         invoice_date_std = formatted_data.get('基本信息', {}).get('开票日期标准格式', '')
         if invoice_date_std:
             try:
@@ -110,9 +135,6 @@ def process_invoice_image(image_path, project_id=None):
         invoice_code = invoice_data.get('invoice_code')
         invoice_number = invoice_data.get('invoice_number')
         
-        from app.models import Invoice, InvoiceItem, db
-        
-        # 检查是否成功识别出发票代码和号码
         if not invoice_code or not invoice_number:
             current_app.logger.warning(f"识别失败: 文件 {image_path} 未能识别出发票代码或号码")
             # 保存失败文件的副本用于后续分析
@@ -120,7 +142,6 @@ def process_invoice_image(image_path, project_id=None):
             if not basename.startswith('failed_'):
                 failed_copy = os.path.join(os.path.dirname(image_path), f"failed_{basename}")
                 try:
-                    import shutil
                     shutil.copy2(image_path, failed_copy)
                     current_app.logger.info(f"已保存识别失败文件副本: {failed_copy}")
                 except Exception as e:
@@ -131,90 +152,57 @@ def process_invoice_image(image_path, project_id=None):
                 'message': '未能识别出发票代码或号码，请检查文件清晰度或文件内容是否为有效发票'
             }
         
-        if invoice_code and invoice_number:
-            existing_invoice = Invoice.query.filter_by(
-                invoice_code=invoice_code,
-                invoice_number=invoice_number
-            ).first()
-            
-            if existing_invoice:
-                # 如果发票已存在，也应该删除临时文件
-                try:
-                    os.remove(image_path)
-                    current_app.logger.info(f"发票已存在，删除临时文件: {image_path}")
-                except Exception as e:
-                    current_app.logger.warning(f"发票已存在，但无法删除临时文件: {image_path}, 错误: {str(e)}")
-                
-                return {
-                    'success': True,
-                    'message': f'发票已存在 (ID: {existing_invoice.id})',
-                    'invoice_id': existing_invoice.id
-                }
-            
-            # 使用发票代码和号码创建新的文件名
-            filename = secure_filename(os.path.basename(image_path))
-            
-            # 确保文件名不带temp_前缀
-            if filename.startswith('temp_'):
-                filename = filename[5:]  # 移除temp_前缀
-            
-            # 获取原始文件的扩展名，确保保留
-            file_ext = os.path.splitext(filename)[1].lower()
-            
-            # 如果没有扩展名，根据文件内容推断
-            if not file_ext:
-                # 检查是否是PDF文件
-                try:
-                    with open(image_path, 'rb') as f:
-                        header = f.read(4)
-                        if header == b'%PDF':
-                            file_ext = '.pdf'
-                        else:
-                            file_ext = '.jpg'  # 默认为jpg
-                except Exception:
-                    file_ext = '.jpg'  # 失败时默认为jpg
-            
-            new_filename = f"{invoice_code}{invoice_number}{file_ext}"
-            current_app.logger.info(f"生成新文件名: {new_filename}")
-        else:
-            # 如果没有识别出代码和号码，使用原文件名但移除temp_前缀
-            basename = os.path.basename(image_path)
-            file_ext = os.path.splitext(basename)[1].lower()
-            
-            if basename.startswith('temp_'):
-                new_filename = basename[5:] # 移除temp_前缀
-            else:
-                new_filename = basename
-                
-            # 确保有正确的文件扩展名
-            if not file_ext:
-                try:
-                    with open(image_path, 'rb') as f:
-                        header = f.read(4)
-                        if header == b'%PDF':
-                            new_filename = f"{os.path.splitext(new_filename)[0]}.pdf"
-                except Exception:
-                    pass
-                
-            current_app.logger.warning(f"使用普通文件名: {new_filename}")
+        existing_invoice = Invoice.query.filter_by(
+            invoice_code=invoice_code,
+            invoice_number=invoice_number
+        ).first()
         
-        # 最终文件路径
+        if existing_invoice:
+            try:
+                os.remove(image_path)
+                current_app.logger.info(f"发票已存在，删除临时文件: {image_path}")
+            except Exception as e:
+                current_app.logger.warning(f"发票已存在，但无法删除临时文件: {image_path}, 错误: {str(e)}")
+            
+            return {
+                'success': True,
+                'message': f'发票已存在 (ID: {existing_invoice.id})',
+                'invoice_id': existing_invoice.id
+            }
+        
+        filename = secure_filename(os.path.basename(image_path))
+        
+        if filename.startswith('temp_'):
+            filename = filename[5:]
+        
+        file_ext = os.path.splitext(filename)[1].lower()
+        
+        if not file_ext:
+            try:
+                with open(image_path, 'rb') as f:
+                    header = f.read(4)
+                    if header == b'%PDF':
+                        file_ext = '.pdf'
+                    else:
+                        file_ext = '.jpg'
+            except Exception:
+                file_ext = '.jpg'
+        
+        new_filename = f"{invoice_code}{invoice_number}{file_ext}"
+        current_app.logger.info(f"生成新文件名: {new_filename}")
+        
         upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
         final_file_path = os.path.join(upload_folder, new_filename)
-        
-        # 移动文件
-        import shutil
+
         shutil.copy2(image_path, final_file_path)
         current_app.logger.info(f"复制文件: {image_path} -> {final_file_path}")
-        
-        # 删除原始临时文件
+
         try:
             os.remove(image_path)
             current_app.logger.info(f"删除临时文件: {image_path}")
         except Exception as e:
             current_app.logger.warning(f"无法删除临时文件: {image_path}, 错误: {str(e)}")
-        
-        # 创建新发票记录
+
         invoice = Invoice(
             invoice_code=invoice_data.get('invoice_code', ''),
             invoice_number=invoice_data.get('invoice_number', ''),
@@ -232,47 +220,44 @@ def process_invoice_image(image_path, project_id=None):
             total_tax=invoice_data.get('total_tax', ''),
             amount_in_words=invoice_data.get('amount_in_words', ''),
             amount_in_figures=invoice_data.get('amount_in_figures', ''),
-            image_path=new_filename,  # 直接使用文件名，不要添加uploads/前缀
+            image_path=new_filename,
             project_id=project_id
         )
-        
+        invoice.sync_decimal_fields()
+
         db.session.add(invoice)
-        db.session.commit()
-        current_app.logger.info(f"保存发票记录: ID={invoice.id}, 代码={invoice_code}, 号码={invoice_number}")
-        
-        # 创建发票项目关联
+        db.session.flush()
+
         if 'json_data' in invoice_data and invoice_data['json_data']:
             formatted_data = invoice_data['json_data']
-            # 处理商品项目
             items_data = formatted_data.get('商品信息', [])
             for item_data in items_data:
                 item = InvoiceItem.from_item_data(invoice.id, item_data)
                 db.session.add(item)
-            
-            # 保存完整JSON数据
             invoice.json_data = json.dumps(formatted_data, ensure_ascii=False)
-            db.session.commit()
             current_app.logger.info(f"为发票ID={invoice.id}保存了{len(items_data)}个商品项目")
-        
+
+        db.session.commit()
+        current_app.logger.info(f"保存发票记录: ID={invoice.id}, 代码={invoice_code}, 号码={invoice_number}")
+
         return {
             'success': True,
             'message': '发票识别并保存成功',
             'invoice_id': invoice.id
         }
-        
+
     except Exception as e:
+        db.session.rollback()
         current_app.logger.error(f"处理发票文件时出错: {str(e)}")
-        # 保存失败文件的副本用于后续分析
         try:
             basename = os.path.basename(image_path)
             if not basename.startswith('failed_'):
                 failed_copy = os.path.join(os.path.dirname(image_path), f"failed_{basename}")
-                import shutil
                 shutil.copy2(image_path, failed_copy)
                 current_app.logger.info(f"已保存识别失败文件副本: {failed_copy}")
         except Exception as copy_error:
             current_app.logger.error(f"保存识别失败文件副本时出错: {str(copy_error)}")
-        
+
         return {
             'success': False,
             'message': f'处理发票文件时出错: {str(e)}'
@@ -280,20 +265,17 @@ def process_invoice_image(image_path, project_id=None):
 
 
 def get_invoice_statistics(invoices):
-    """获取发票统计数据"""
-    from decimal import Decimal
     import re
-    from datetime import datetime
-    
-    # 总发票数
+
     invoice_count = len(invoices)
     
     # 价税总额 - 从价税合计(小写)提取数字部分
     total_amount = 0
     for invoice in invoices:
-        if invoice.amount_in_figures:
+        if invoice.amount_decimal is not None:
+            total_amount += float(invoice.amount_decimal)
+        elif invoice.amount_in_figures:
             try:
-                # 清理金额字符串，只保留数字和小数点
                 amount_str = re.sub(r'[^\d.]', '', invoice.amount_in_figures)
                 total_amount += float(amount_str) if amount_str else 0
             except (ValueError, TypeError):
@@ -316,8 +298,9 @@ def get_invoice_statistics(invoices):
             
             month_stats[month_str]['count'] += 1
             
-            # 累加金额
-            if invoice.amount_in_figures:
+            if invoice.amount_decimal is not None:
+                month_stats[month_str]['amount'] += float(invoice.amount_decimal)
+            elif invoice.amount_in_figures:
                 try:
                     amount_str = re.sub(r'[^\d.]', '', invoice.amount_in_figures)
                     month_stats[month_str]['amount'] += float(amount_str) if amount_str else 0
@@ -431,7 +414,7 @@ def export_project(project_id, auto_delete=False):
         if invoice.json_data:
             try:
                 invoice.formatted_data = json.loads(invoice.json_data)
-            except:
+            except (json.JSONDecodeError, ValueError):
                 invoice.formatted_data = None
     
     # 整理项目数据
@@ -552,6 +535,7 @@ def update_invoice_from_json(invoice_id):
         invoice.total_tax = amount_info.get('合计税额', invoice.total_tax)
         invoice.amount_in_words = amount_info.get('价税合计(大写)', invoice.amount_in_words)
         invoice.amount_in_figures = amount_info.get('价税合计(小写)', invoice.amount_in_figures)
+        invoice.sync_decimal_fields()
         
         # 更新其他信息
         invoice.remarks = other_info.get('备注', invoice.remarks)

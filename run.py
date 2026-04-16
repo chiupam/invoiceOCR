@@ -7,11 +7,11 @@ import pathlib
 import logging
 from datetime import datetime
 from flask.cli import with_appcontext
-from app import create_app, db
+from app import create_app, db, migrate
 from app.models import Invoice, InvoiceItem, Settings, User
 from app.utils import cleanup_old_exported_files
 
-app = create_app(os.getenv('FLASK_CONFIG') or 'default')
+app = create_app()
 
 security_logger = logging.getLogger('security')
 security_logger.setLevel(logging.INFO)
@@ -38,14 +38,17 @@ def check_and_init_db():
         uploads_dir.mkdir(parents=True, exist_ok=True)
         print("已创建uploads目录")
 
-    db_path = pathlib.Path('data/invoices.db')
-    db_exists = db_path.exists()
-
     with app.app_context():
-        db.create_all()
-
-        if not db_exists:
-            print("数据库初始化完成！")
+        from flask_migrate import upgrade as _upgrade
+        try:
+            _upgrade()
+        except Exception:
+            db.create_all()
+            stamp_dir = os.path.join(os.path.dirname(__file__), 'migrations')
+            if os.path.isdir(stamp_dir):
+                from flask_migrate import stamp as _stamp
+                _stamp()
+                print("数据库已标记为最新迁移版本")
 
         if User.can_register():
             print("\n" + "=" * 50)
@@ -211,4 +214,4 @@ except ImportError:
 
 if __name__ == '__main__':
     check_and_init_db()
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=app.config.get('DEBUG', False))

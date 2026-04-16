@@ -1,16 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
 import json
+import re
 import decimal
 import pyotp
 import bcrypt
-import secrets
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash
 from decimal import Decimal
 
 db = SQLAlchemy()
@@ -160,6 +159,10 @@ class Invoice(db.Model):
     amount_in_words = db.Column(db.String(100), nullable=True)
     amount_in_figures = db.Column(db.String(50), nullable=True)
 
+    total_amount_decimal = db.Column(db.Numeric(12, 2), nullable=True)
+    total_tax_decimal = db.Column(db.Numeric(12, 2), nullable=True)
+    amount_decimal = db.Column(db.Numeric(12, 2), nullable=True)
+
     remarks = db.Column(db.String(200), nullable=True)
     payee = db.Column(db.String(50), nullable=True)
     reviewer = db.Column(db.String(50), nullable=True)
@@ -186,13 +189,37 @@ class Invoice(db.Model):
                 return f"NO.{self.invoice_number}"
         return f"ID{self.id}"
 
-    def get_total_amount_decimal(self):
+    @staticmethod
+    def _clean_amount_str(amount_str):
+        if not amount_str:
+            return None
+        cleaned = re.sub(r'[^\d.]', '', str(amount_str))
+        if not cleaned:
+            return None
         try:
-            amount_str = self.amount_in_figures or '0'
-            cleaned_amount = amount_str.replace('¥', '').replace('￥', '').replace(' ', '').replace('元', '')
-            return Decimal(cleaned_amount)
+            return Decimal(cleaned)
         except (ValueError, TypeError, decimal.InvalidOperation):
-            return Decimal('0')
+            return None
+
+    def get_total_amount_decimal(self):
+        if self.amount_decimal is not None:
+            return self.amount_decimal
+        result = self._clean_amount_str(self.amount_in_figures)
+        return result if result is not None else Decimal('0')
+
+    def sync_decimal_fields(self):
+        if self.total_amount and self.total_amount_decimal is None:
+            val = self._clean_amount_str(self.total_amount)
+            if val is not None:
+                self.total_amount_decimal = val
+        if self.total_tax and self.total_tax_decimal is None:
+            val = self._clean_amount_str(self.total_tax)
+            if val is not None:
+                self.total_tax_decimal = val
+        if self.amount_in_figures and self.amount_decimal is None:
+            val = self._clean_amount_str(self.amount_in_figures)
+            if val is not None:
+                self.amount_decimal = val
 
     @classmethod
     def from_formatted_data(cls, formatted_data, image_path=None):
