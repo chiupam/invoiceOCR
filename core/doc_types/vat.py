@@ -38,7 +38,7 @@ class VatInvoice(DocType):
         # Look at the 发票类型/发票名称 field to decide whether this is the
         # special (专票) or general (普票) variant. Both branches produce the
         # same output shape — only the field-extraction rules differ.
-        invoice_data = self._extract_field_pairs(response_json["Response"])
+        invoice_data = self.extract_fields(response_json)
 
         invoice_type = (
             invoice_data.get("发票类型")
@@ -99,27 +99,24 @@ class VatInvoice(DocType):
         self._standardize_date(formatted, invoice_data)
         return formatted
 
-    # --- Helpers (private) ---------------------------------------------------
+    # --- Extraction ----------------------------------------------------------
 
-    def _extract_field_pairs(self, response: dict) -> dict[str, str]:
-        """Flatten Response.VatInvoiceInfos[] into a {Name: Value} dict.
-
-        Handles two field-name variants that Tencent uses for the unified
-        social-credit-code on 普票 (general invoices).
-        """
-        out: dict[str, str] = {}
-        for item in response.get("VatInvoiceInfos", []):
-            if "Name" not in item or "Value" not in item:
-                continue
-            name, value = item["Name"], item["Value"]
-            # Map the long-form VAT general-invoice field names to short ones
-            if name == "购买方统一社会信用代码/纳税人识别号":
-                out["购买方识别号"] = value
-            elif name == "销售方统一社会信用代码/纳税人识别号":
-                out["销售方识别号"] = value
-            else:
-                out[name] = value
+    def extract_fields(self, response_json: dict) -> dict[str, str]:
+        """Override the default extractor to also handle the long-form 普票
+        field-name aliases (``购买方统一社会信用代码/纳税人识别号`` and
+        ``销售方统一社会信用代码/纳税人识别号``)."""
+        out = super().extract_fields(response_json)
+        # Map long-form names → short-form when present (only 普票 uses them)
+        renames = {
+            "购买方统一社会信用代码/纳税人识别号": "购买方识别号",
+            "销售方统一社会信用代码/纳税人识别号": "销售方识别号",
+        }
+        for long, short in renames.items():
+            if long in out and short not in out:
+                out[short] = out.pop(long)
         return out
+
+    # --- Helpers (private) ---------------------------------------------------
 
     def _enrich_general_invoice(self, data: dict) -> dict:
         """Apply 普票-specific fallbacks (code from number, aliases for totals)."""
@@ -141,25 +138,6 @@ class VatInvoice(DocType):
             logger.info(f"从发票号码中提取发票代码: {code}")
             data["发票代码"] = code
         return data
-
-    @staticmethod
-    def format_invoice_number(number: str) -> str:
-        """Strip leading No/No. prefix."""
-        if not number:
-            return ""
-        if number.startswith("No."):
-            return number[3:]
-        if number.startswith("No"):
-            return number[2:]
-        return number
-
-    @staticmethod
-    def format_amount(amount: str) -> str:
-        """Normalize currency prefix (collapse duplicate ¥/￥ into one)."""
-        if not amount:
-            return ""
-        amount = amount.replace("¥", "").replace("￥", "").strip()
-        return f"¥{amount}"
 
     @staticmethod
     def _standardize_date(formatted: dict, source: dict) -> None:
