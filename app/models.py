@@ -168,6 +168,13 @@ class Invoice(db.Model):
     image_path = db.Column(db.String(200), nullable=True)
     json_data = db.Column(db.Text, nullable=True)
 
+    # Doc-type architecture (see core/doc_types/). doc_type is the id of
+    # the DocType that produced this row ('vat' / 'medical' / 'train' / …).
+    # extra_data is a JSON blob holding type-specific sections that don't
+    # fit the fixed columns above (medical's 医保信息, train's 乘车信息).
+    doc_type = db.Column(db.String(50), nullable=True)
+    extra_data = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 

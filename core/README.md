@@ -14,7 +14,9 @@ core/
 ├── doc_types/           # 文档类型插件包 (新增 — 多发票类型架构)
 │   ├── __init__.py      #   注册表 + dispatch helpers
 │   ├── base.py          #   DocType 抽象基类
-│   └── vat.py           #   增值税发票 DocType
+│   ├── vat.py           #   增值税发票 DocType
+│   ├── medical.py       #   医疗票据 DocType (RecognizeMedicalInvoiceOCR)
+│   └── train.py         #   火车票 DocType (TrainTicketOCR)
 └── README.md           # 本文档
 ```
 
