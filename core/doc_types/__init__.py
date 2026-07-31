@@ -60,3 +60,4 @@ def detect(response_json: dict) -> Optional[DocType]:
 
 from . import vat  # noqa: E402,F401  -- registers "vat"
 from . import medical  # noqa: E402,F401  -- registers "medical"
+from . import train  # noqa: E402,F401  -- registers "train"
