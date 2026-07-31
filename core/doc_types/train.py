@@ -61,15 +61,19 @@ class TrainTicket(DocType):
 
     def detect_response(self, response_json: dict) -> bool:
         """A train-ticket response has TicketNum + TrainNum at the top
-        level. We require both AND no VAT/medical markers to avoid false
-        positives on responses that happen to include those keys."""
+        level.
+
+        Note: with the planned upload-form doc-type picker (M3), this
+        detection logic becomes a safety net for non-UI callers (CLI
+        tools, batch jobs) rather than the primary routing mechanism.
+        The user picks the type at upload time → the right OCR endpoint
+        gets called → the response shape matches → no detection needed.
+
+        The current implementation requires both TicketNum AND TrainNum
+        (the unique combination that no other Tencent endpoint returns).
+        """
         response = response_json.get("Response", {})
-        if not (response.get("TicketNum") and response.get("TrainNum")):
-            return False
-        # Don't claim a train response if it looks more like VAT or medical
-        if "VatInvoiceInfos" in response or "MedicalInvoiceInfos" in response:
-            return False
-        return True
+        return bool(response.get("TicketNum")) and bool(response.get("TrainNum"))
 
     # --- Extraction ----------------------------------------------------------
 
