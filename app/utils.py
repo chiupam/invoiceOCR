@@ -52,30 +52,39 @@ def save_uploaded_file(file):
     return None
 
 
-def process_invoice_image(image_path, project_id=None):
+def process_invoice_image(image_path, project_id=None, doc_type='vat'):
     """
     处理发票文件，识别并保存发票数据
-    
+
     参数:
         image_path: 文件在服务器上的完整路径
         project_id: 项目ID，默认为None
-        
+        doc_type: 文档类型 id（'vat' / 'medical' / 'train' / …），决定
+            调用哪个腾讯云 OCR 端点以及使用哪个 DocType 格式化。
+            默认为 'vat' 保持向后兼容。
+
     返回:
         包含success标志和结果的字典
     """
     # 创建OCR API客户端
     ocr_api = OCRClient()
-    
+
     try:
         # 记录开始处理的文件
-        current_app.logger.info(f"开始处理文件: {image_path}")
-        
-        # 调用OCR API识别发票
-        response_json = ocr_api.recognize_vat_invoice(image_path=image_path)
-        
-        # 格式化发票数据
-        formatted_data = InvoiceFormatter.format_invoice_data(json_string=response_json)
-        
+        current_app.logger.info(
+            f"开始处理文件: {image_path} (doc_type={doc_type})"
+        )
+
+        # 调用OCR API识别发票（按 doc_type 路由到对应端点）
+        response_json = ocr_api.recognize(
+            image_path=image_path, doc_type=doc_type,
+        )
+
+        # 格式化发票数据（按 doc_type 路由到对应 DocType）
+        formatted_data = InvoiceFormatter.format_invoice_data(
+            json_string=response_json, doc_type=doc_type,
+        )
+
         # 提取关键信息用于返回
         invoice_data = {
             'invoice_code': formatted_data.get('基本信息', {}).get('发票代码', ''),
@@ -215,6 +224,15 @@ def process_invoice_image(image_path, project_id=None):
             current_app.logger.warning(f"无法删除临时文件: {image_path}, 错误: {str(e)}")
         
         # 创建新发票记录
+        # 对于非VAT类型，部分字段（如医疗的"收款单位"、火车的"车次"）不
+        # 映射到现有的列。把不属于已知列的 type-specific sections 序列化
+        # 到 extra_data 列，详情页模板可以从那里读取并渲染。
+        extra_sections = {
+            k: formatted_data.get(k, {})
+            for k in ("医保信息", "乘车信息")
+            if formatted_data.get(k)
+        }
+
         invoice = Invoice(
             invoice_code=invoice_data.get('invoice_code', ''),
             invoice_number=invoice_data.get('invoice_number', ''),
@@ -233,7 +251,9 @@ def process_invoice_image(image_path, project_id=None):
             amount_in_words=invoice_data.get('amount_in_words', ''),
             amount_in_figures=invoice_data.get('amount_in_figures', ''),
             image_path=new_filename,  # 直接使用文件名，不要添加uploads/前缀
-            project_id=project_id
+            project_id=project_id,
+            doc_type=doc_type,
+            extra_data=json.dumps(extra_sections, ensure_ascii=False) if extra_sections else None,
         )
         
         db.session.add(invoice)

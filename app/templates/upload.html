@@ -26,6 +26,17 @@
                                             {% endfor %}
                                         </select>
                                     </div>
+
+                                    <!-- 选择文档类型 -->
+                                    <div class="form-group">
+                                        <label for="doc_type">文档类型</label>
+                                        <select class="form-control" id="doc_type" name="doc_type">
+                                            {% for dt in doc_types %}
+                                            <option value="{{ dt.type_id }}" {% if loop.first %}selected{% endif %}>{{ dt.display_name }} ({{ dt.type_id }})</option>
+                                            {% endfor %}
+                                        </select>
+                                        <small class="form-text text-muted">决定调用哪个 OCR 接口。增值税发票最常见；选错可以稍后在编辑页修正。</small>
+                                    </div>
                                     
                                     <div class="mb-4 text-center">
                                         <div class="drop-zone" id="dropZone">

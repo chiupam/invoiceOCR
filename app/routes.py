@@ -13,6 +13,7 @@ import re
 
 from .models import db, Invoice, InvoiceItem, Project, Settings
 from .utils import save_uploaded_file, process_invoice_image, get_invoice_statistics, export_invoice, delete_invoice, export_project
+from core.doc_types import get as _get_doc_type, all_types as _all_doc_types
 
 # 创建蓝图
 main = Blueprint('main', __name__)
@@ -288,9 +289,18 @@ def upload():
             project_id = request.form.get('project_id', None)
             if project_id == '':
                 project_id = None
-            
+
+            # 获取文档类型（决定调用哪个 OCR 端点）。默认为 'vat' 保持
+            # 向后兼容。空字符串 / 未知值都视为 'vat'。
+            doc_type = (request.form.get('doc_type', '') or 'vat').strip().lower()
+            if _get_doc_type(doc_type) is None:
+                current_app.logger.warning(f"未知的 doc_type={doc_type!r}, 回退到 'vat'")
+                doc_type = 'vat'
+
             # 处理发票文件
-            result = process_invoice_image(temp_file_path, project_id=project_id)
+            result = process_invoice_image(
+                temp_file_path, project_id=project_id, doc_type=doc_type,
+            )
             
             if not result.get('success'):
                 # 不再删除临时文件，因为process_invoice_image已经处理过或保存为failed_副本
@@ -337,10 +347,11 @@ def upload():
             flash(error_message)
             return redirect(request.url)
     
-    return render_template('upload.html', 
-                          projects=projects, 
+    return render_template('upload.html',
+                          projects=projects,
                           default_project_id=default_project_id,
-                          current_project_id=default_project_id)
+                          current_project_id=default_project_id,
+                          doc_types=_all_doc_types())
 
 
 @main.route('/invoice/<int:invoice_id>')
