@@ -6,13 +6,67 @@
 
 ```
 core/
-├── __init__.py          # 包初始化文件
-├── ocr_api.py           # OCR API调用模块
-├── invoice_formatter.py # 发票数据格式化模块
+├── __init__.py          # 包初始化文件 (eager-registers built-in DocTypes)
+├── ocr_api.py           # OCR API调用模块 (Tencent signed-request transport)
+├── invoice_formatter.py # 发票数据格式化模块 (registry dispatcher)
 ├── invoice_export.py    # 发票导出功能模块
-├── ocr_process.py       # OCR处理核心功能
+├── ocr_process.py       # OCR处理核心功能 (CLI)
+├── doc_types/           # 文档类型插件包 (新增 — 多发票类型架构)
+│   ├── __init__.py      #   注册表 + dispatch helpers
+│   ├── base.py          #   DocType 抽象基类
+│   └── vat.py           #   增值税发票 DocType
 └── README.md           # 本文档
 ```
+
+## 多文档类型架构 (v1.5+)
+
+从 v1.5 开始, OCR 调用与格式化按文档类型 (DocType) 解耦。新增一种发票
+类型不再需要修改 `ocr_api.py`、`invoice_formatter.py`、`app/routes.py`
+或模板 — 只需在 `core/doc_types/` 下新增一个模块并实现 `DocType` 基类。
+
+### 概念
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ app/utils.py  (上传入口)                                   │
+│   │                                                        │
+│   ▼                                                        │
+│ ocr_api.OCRClient.recognize(doc_type="vat")                │
+│   │   → DocType.ocr_action    (例如 "VatInvoiceOCR")       │
+│   │   → DocType.ocr_request_extras()                       │
+│   ▼                                                        │
+│ invoice_formatter.InvoiceFormatter.format_invoice_data()   │
+│   │   → DocType.detect_response() 或 doc_type 参数         │
+│   │   → DocType.format()                                   │
+│   ▼                                                        │
+│ 返回与 v1.4 兼容的结构化 dict                               │
+└────────────────────────────────────────────────────────────┘
+```
+
+### 添加新类型 (示例)
+
+```python
+# core/doc_types/medical.py
+from .base import DocType
+from . import register
+
+class MedicalInvoice(DocType):
+    type_id = "medical"
+    display_name = "医疗票据"
+    ocr_action = "RecognizeMedicalInvoiceOCR"
+
+    def detect_response(self, response_json):
+        return "MedicalInvoiceInfos" in response_json.get("Response", {})
+
+    def format(self, response_json):
+        # ... 字段提取逻辑 ...
+        return {"基本信息": {...}, "金额信息": {...}, ...}
+
+register(MedicalInvoice())
+```
+
+`import core.doc_types` 或 `import core` 时自动注册。
+在 UI 中通过 `core.doc_types.all_types()` 获取所有可用类型用于下拉菜单。
 
 ## 系统工作流程
 
