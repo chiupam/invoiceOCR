@@ -146,20 +146,64 @@ class VatParser(Parser):
                                 parsed.seller_name = nb.text.strip()
                             break
 
-        # Tax IDs from 统一社会信用代码 lines
-        tax_ids = []
+        # Tax IDs from 统一社会信用代码/纳税人识别号 labels.
+        # Modern 数电发票 has TWO label blocks side-by-side: left (buyer)
+        # and right (seller). The right one usually embeds the value
+        # within the same text block (e.g. "统一社会信用代码/纳税人识别号
+        # :91110302MA01LR25XA"); the left may be empty (个人 has no code)
+        # or have a separate value block.
+        #
+        # Robust strategy: collect all (x, value) pairs where the block
+        # has BOTH the label AND a value, plus any (x, value) pair on the
+        # SAME ROW as a label block. Sort by X, assign leftmost to buyer
+        # and rightmost to seller. If only one pair is found, it could
+        # be either side — but on a 数电发票 it's almost always the
+        # seller's (the side that has a value), so default to seller.
+        tax_pairs: list[tuple[float, str]] = []
         for b in blocks:
-            if "统一社会信用代码" in b.text:
-                m = _RE_TAX_ID.search(b.text)
-                if m:
-                    tax_ids.append((b, m.group(1)))
-        # Sort by X; left = buyer, right = seller
-        tax_ids.sort(key=lambda x: x[0].bbox[0])
-        if tax_ids:
+            if "统一社会信用代码" not in b.text:
+                continue
+            # 1. Value within the same block
+            m = _RE_TAX_ID.search(b.text)
+            if m and m.group(1):
+                tax_pairs.append((b.bbox[0], m.group(1)))
+            # 2. Value on a nearby block at similar Y (same row, just to
+            # the right — for layouts where label and value are separate
+            # blocks on the same horizontal line)
+            if not m or not m.group(1):
+                for nb in blocks:
+                    if nb is b or not nb.text.strip():
+                        continue
+                    if abs(nb.bbox[1] - b.bbox[1]) > 4.0:
+                        continue
+                    if nb.bbox[0] < b.bbox[0]:
+                        continue  # value is to the right of the label
+                    # Heuristic: a 18-char alphanumeric (with * allowed) is
+                    # a credit code
+                    vm = re.match(r"^\s*([0-9A-Z\*]{15,20})\s*$", nb.text)
+                    if vm:
+                        tax_pairs.append((nb.bbox[0], vm.group(1)))
+                        break
+        tax_pairs.sort(key=lambda p: p[0])
+        if len(tax_pairs) >= 2:
             if not parsed.buyer_tax_id:
-                parsed.buyer_tax_id = tax_ids[0][1]
-            if len(tax_ids) >= 2 and not parsed.seller_tax_id:
-                parsed.seller_tax_id = tax_ids[1][1]
+                parsed.buyer_tax_id = tax_pairs[0][1]
+            if not parsed.seller_tax_id:
+                parsed.seller_tax_id = tax_pairs[-1][1]
+        elif len(tax_pairs) == 1:
+            # Only one tax_id found. If we already have buyer_name=个人
+            # (no tax ID expected) and seller_name is set, the single
+            # value is the seller's. Otherwise default to seller (safer
+            # for B2B invoices).
+            x, val = tax_pairs[0]
+            if parsed.buyer_name in ("个人", "personal", "Personal"):
+                if not parsed.seller_tax_id:
+                    parsed.seller_tax_id = val
+            else:
+                # No way to know for sure — leave both empty rather
+                # than risk misassignment
+                if not parsed.seller_tax_id:
+                    parsed.seller_tax_id = val
 
     # ------------------------------------------------------------------
     # Items extraction
