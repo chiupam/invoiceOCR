@@ -79,10 +79,14 @@ only the serving hardware is the constraint.
 **Why the community GGUF behaves differently:** the official HF repo is
 safetensors + custom Python modeling code (`UnlimitedOCRForCausalLM`,
 `deepencoder.py`, DeepSeek-V2 lineage). The Ollama GGUF is a llama.cpp
-conversion that loses the custom decode pipeline — most importantly the
-n-gram repetition guard. That's why it emits a different output shape
-(`label [bbox]content`) and is non-deterministic. The GGUF is a
-best-effort fallback, not a faithful port of the official model.
+conversion whose author did not implement the model's required n-gram
+repetition-guard sampler (Ollama's API doesn't expose `ngram_size` /
+`window_size` like vLLM's `extra_body` does). That's a **serving
+choice / API-surface gap, not a GGUF format limitation** — a GGUF with
+proper n-gram handling (custom Ollama runner or llama.cpp flags) could
+behave much closer to the official model. As shipped, it emits a
+different output shape (`label [bbox]content`) and is non-deterministic,
+so treat it as a best-effort CPU fallback, not a faithful port.
 
 Also tested, both failed on this 11GB CPU-only host:
 - `deepseek-ocr:latest` (6.7GB GGUF) — didn't fit, Ollama timed out
