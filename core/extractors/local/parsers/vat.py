@@ -242,7 +242,10 @@ class VatParser(Parser):
             name = text
             for a in amounts:
                 name = name.replace(a, " ", 1).strip()
-            if len(name) < 2:
+            # Skip names that are only currency symbols / whitespace (e.g.
+            # a leaked ￥ from the 价税合计（小写）row).
+            name_clean = name.replace("¥", "").replace("￥", "").replace(" ", "")
+            if not name_clean or len(name_clean) < 2:
                 continue
             items.append({
                 "name": name,

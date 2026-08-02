@@ -244,29 +244,62 @@ class MedicalParser(Parser):
             y = int(b.bbox[1] / 4.0)
             lines.setdefault(y, []).append(b)
 
+        # Detect column split: medical receipts often have TWO item
+        # groups side-by-side (left + right, each with its own
+        # 项目名称/数量/金额/备注 header). The boundary is between the
+        # 4th header token (备注 of left table) and the 5th (项目名称 of
+        # right table). A naive "biggest gap" picks the 项目名称→数量/单位
+        # internal gap instead.
+        mid_x = None
+        header_blocks = [b for b in blocks if b.text in ("项目名称", "数量/单位", "金额（元）", "备注")]
+        if len(header_blocks) >= 8:
+            hxs = sorted(b.bbox[0] for b in header_blocks)
+            # Token 4 (index 3) = 备注 of left table; token 5 (index 4) =
+            # 项目名称 of right table. Boundary is between them.
+            gap = hxs[4] - hxs[3]
+            if gap > 30:
+                mid_x = (hxs[3] + hxs[4]) / 2
+
+        def _split_row(ws: list) -> list[tuple[float, list]]:
+            """Split a row's words into left/right groups by mid_x."""
+            if mid_x is None:
+                return [(0.0, ws)]
+            left = [w for w in ws if w.bbox[0] < mid_x]
+            right = [w for w in ws if w.bbox[0] >= mid_x]
+            groups = []
+            if left:
+                groups.append((0.0, left))
+            if right:
+                groups.append((mid_x, right))
+            return groups
+
         items = []
         for y in sorted(lines.keys()):
             ws = sorted(lines[y], key=lambda b: b.bbox[0])
-            text = "".join(w.text for w in ws)
-            # Find amount (last decimal in the line)
-            amounts = _RE_AMOUNT.findall(text)
-            if not amounts:
-                continue
-            amount = amounts[-1]
-            # Strip amount from text to get name
-            name = text
-            for a in amounts:
-                name = name.replace(a, " ", 1).strip()
-            if len(name) < 2:
-                continue
-            items.append({
-                "name": name,
-                "quantity": "",
-                "unit": "",
-                "unit_price": "",
-                "amount": f"¥{amount}",
-                "remark": "",
-            })
+            for _, group in _split_row(ws):
+                text = "".join(w.text for w in group)
+                # Find amount (last decimal in the group)
+                amounts = _RE_AMOUNT.findall(text)
+                if not amounts:
+                    continue
+                amount = amounts[-1]
+                # Strip amount from text to get name
+                name = text
+                for a in amounts:
+                    name = name.replace(a, " ", 1).strip()
+                # Strip trailing qty/unit/remark noise: "1.00次" etc.
+                name = re.sub(r"\s*\d+(\.\d+)?[项次支盒袋剂片]\s*\S*", " ", name)
+                name = name.strip()
+                if len(name) < 2:
+                    continue
+                items.append({
+                    "name": name,
+                    "quantity": "",
+                    "unit": "",
+                    "unit_price": "",
+                    "amount": f"¥{amount}",
+                    "remark": "",
+                })
         return items
 
     @staticmethod
