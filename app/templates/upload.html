@@ -43,10 +43,12 @@
                                         <label for="backend">识别后端</label>
                                         <select class="form-control" id="backend" name="backend">
                                             {% for b in backends %}
+                                            {% if b.name != 'local-pdf' %}
                                             <option value="{{ b.name }}" {% if loop.first %}selected{% endif %}>{{ b.display_name }} ({{ b.name }})</option>
+                                            {% endif %}
                                             {% endfor %}
                                         </select>
-                                        <small class="form-text text-muted">tencent=腾讯云OCR（需密钥）；local=本地pdfplumber文本提取（免费，适合电子PDF）；vllm=通用VLM OCR（默认SiliconFlow DeepSeek-OCR，可用VLLM_OCR_ENDPOINT指向Ollama/本地vLLM）。</small>
+                                        <small class="form-text text-muted">电子PDF会自动先用本地pdfplumber无损提取（免费、无需密钥），失败才回退到所选OCR后端。tencent=腾讯云OCR（需密钥）；vllm=通用VLM OCR（默认SiliconFlow DeepSeek-OCR，可用VLLM_OCR_ENDPOINT指向Ollama/本地vLLM）。</small>
                                     </div>
                                     
                                     <div class="mb-4 text-center">

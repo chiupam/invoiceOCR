@@ -22,10 +22,20 @@ logger = logging.getLogger(__name__)
 
 
 class LocalPdfBackend(LocalBackend):
-    """Text extraction via pdfplumber — no OCR involved."""
+    """Text extraction via pdfplumber — no OCR involved.
 
-    name = "local"
-    display_name = "本地文本提取 (pdfplumber)"
+    Only works on machine-generated (text-based) PDFs. Paper scans /
+    photos have no embedded text and must use an OCR backend (vllm,
+    tencent).
+
+    This backend is used automatically by the app as a first-pass for
+    PDF uploads (see app/utils.py process_invoice_image). Users don't
+    normally pick it directly — it's the free+fast path that fires when
+    the file is a text-based PDF.
+    """
+
+    name = "local-pdf"
+    display_name = "本地PDF文本提取 (pdfplumber)"
 
     def is_available(self) -> bool:
         try:

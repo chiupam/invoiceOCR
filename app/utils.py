@@ -62,11 +62,12 @@ def process_invoice_image(image_path, project_id=None, doc_type='vat', backend='
         doc_type: 文档类型 id（'vat' / 'medical' / 'train' / …），决定
             调用哪个 OCR 端点以及使用哪个 DocType 格式化。
             默认为 'vat' 保持向后兼容。
-        backend: OCR 后端（'tencent' / 'vllm' / 'local'）。
+        backend: OCR 后端（'tencent' / 'vllm'）。当上传的是电子PDF
+            （可提取文本）时，系统会**自动**先用 pdfplumber 本地提取
+            （免费、快、无损），提取失败才回退到所选 OCR 后端。
             - 'tencent': 腾讯云 OCR（默认，向后兼容）
             - 'vllm': 通用 VLM OCR（OpenAI-compatible 接口，默认 SiliconFlow
               DeepSeek-OCR；可用 VLLM_OCR_ENDPOINT 指向 Ollama / 本地 vLLM 等）
-            - 'local': 本地 pdfplumber（纯文本提取，无 OCR）
 
     返回:
         包含success标志和结果的字典
@@ -77,30 +78,63 @@ def process_invoice_image(image_path, project_id=None, doc_type='vat', backend='
             f"开始处理文件: {image_path} (doc_type={doc_type}, backend={backend})"
         )
 
-        if backend in ('vllm', 'local'):
-            # --- 新后端路径: local backend (VLM OCR 或 pdfplumber) ---
+        # --- 第一步: 自动尝试本地 pdfplumber 文本提取（仅PDF） ---
+        # 机器生成的电子发票是文本型PDF，pdfplumber 可无损提取（免费、ms级）。
+        # 提取成功就直接用，不调用任何 OCR 后端。
+        formatted_data = None
+        if image_path.lower().endswith('.pdf'):
             from core.extractors import get_backend
-            extractor = get_backend(backend)
-            if extractor is None or not extractor.is_available():
-                raise RuntimeError(
-                    f"后端 '{backend}' 不可用。请检查配置（如 SF_API_KEY）。"
+            local_pdf = get_backend('local-pdf')
+            if local_pdf is not None and local_pdf.is_available():
+                try:
+                    candidate = local_pdf.extract(image_path, doc_type)
+                    # 判断是否提取到了实质内容（有票号或金额即视为成功）
+                    has_content = bool(
+                        candidate.invoice_code or candidate.invoice_number
+                        or candidate.amount_in_figures or candidate.items
+                    )
+                    if has_content:
+                        from core.extractors.to_formatted import parsed_to_formatted
+                        formatted_data = parsed_to_formatted(candidate)
+                        current_app.logger.info(
+                            f"本地 pdfplumber 提取成功 (doc_type={doc_type})"
+                        )
+                except Exception as e:
+                    current_app.logger.warning(
+                        f"本地 pdfplumber 提取失败, 回退到 OCR: {e}"
+                    )
+
+        # --- 第二步: 回退到所选 OCR 后端（仅当本地提取没成功） ---
+        if formatted_data is None and backend in ('vllm', 'tencent'):
+            if backend == 'vllm':
+                # --- vllm 后端 (VLM OCR) ---
+                from core.extractors import get_backend
+                extractor = get_backend('vllm')
+                if extractor is None or not extractor.is_available():
+                    raise RuntimeError(
+                        f"后端 'vllm' 不可用。请检查 VLLM_OCR_ENDPOINT / VLLM_OCR_API_KEY 配置。"
+                    )
+                parsed = extractor.extract(image_path, doc_type)
+                from core.extractors.to_formatted import parsed_to_formatted
+                formatted_data = parsed_to_formatted(parsed)
+            else:
+                # --- 原 Tencent 路径 ---
+                # 创建OCR API客户端
+                ocr_api = OCRClient()
+
+                # 调用OCR API识别发票（按 doc_type 路由到对应端点）
+                response_json = ocr_api.recognize(
+                    image_path=image_path, doc_type=doc_type,
                 )
-            parsed = extractor.extract(image_path, doc_type)
-            from core.extractors.to_formatted import parsed_to_formatted
-            formatted_data = parsed_to_formatted(parsed)
-        else:
-            # --- 原 Tencent 路径 ---
-            # 创建OCR API客户端
-            ocr_api = OCRClient()
 
-            # 调用OCR API识别发票（按 doc_type 路由到对应端点）
-            response_json = ocr_api.recognize(
-                image_path=image_path, doc_type=doc_type,
-            )
+                # 格式化发票数据（按 doc_type 路由到对应 DocType）
+                formatted_data = InvoiceFormatter.format_invoice_data(
+                    json_string=response_json, doc_type=doc_type,
+                )
 
-            # 格式化发票数据（按 doc_type 路由到对应 DocType）
-            formatted_data = InvoiceFormatter.format_invoice_data(
-                json_string=response_json, doc_type=doc_type,
+        if formatted_data is None:
+            raise RuntimeError(
+                "未能提取发票内容。请确认文件是电子PDF（文本型）或选择可用的OCR后端。"
             )
 
         # 提取关键信息用于返回
