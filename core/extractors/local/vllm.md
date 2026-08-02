@@ -13,6 +13,16 @@ protocol. Point it at any server that can serve an OCR-capable VLM.
 
 ## Providers / models
 
+> **Source of truth for serving configs:** each model family has an
+> official vLLM recipe page documenting the correct server flags,
+> prompt format, and client usage:
+> - DeepSeek-OCR / DeepSeek-OCR-2: https://recipes.vllm.ai/DeepSeek
+> - Baidu Unlimited-OCR: https://recipes.vllm.ai/baidu/Unlimited-OCR
+> - Qwen3-VL: https://recipes.vllm.ai/Qwen/Qwen3-VL-235B-A22B-Instruct
+>
+> The recipe pages are authoritative for **how to serve** a model; our
+> `ocr_formats.py` registry captures **what output shape** to parse.
+
 ### SiliconFlow (hosted, free tier) — recommended
 
 Default configuration — works out of the box with `VLLM_OCR_API_KEY` set.
@@ -24,6 +34,12 @@ export VLLM_OCR_API_KEY=sk-...
 
 DeepSeek-OCR is the recommended default: dedicated OCR model, faithful
 transcription with grounding boxes, accepts PDFs directly.
+
+**DeepSeek-OCR-2 exists** (released 2026-03, per the vLLM recipe index):
+"improved document-to-markdown grounding and optical context
+compression". Untested in this project — when it appears on SiliconFlow,
+set `VLLM_OCR_MODEL=deepseek-ai/DeepSeek-OCR-2` and it should route to
+the same `_parse_deepseek` format parser (same grounding-token lineage).
 
 Qwen3-VL-8B is a strong alternative — its output is plain labeled text
 (not grounding boxes), which our regex parsers handle cleanly. Slower
