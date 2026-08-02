@@ -130,6 +130,13 @@ def get_format_parser(model: str) -> FormatParser:
 # DeepSeek-OCR AND the official Baidu Unlimited-OCR (DeepSeek-OCR lineage)
 # both emit <|ref|>/<|det|> grounding tokens (see
 # https://recipes.vllm.ai/baidu/Unlimited-OCR). They share the parser.
+#
+# The community GGUF of Unlimited-OCR (frob/unlimited-ocr:q8_0 on Ollama)
+# carries a quantization tag after ':' and emits a DIFFERENT format
+# ('label [bbox]content'). So:
+#   - 'baidu/Unlimited-OCR'        (no tag)  → _parse_deepseek (grounding)
+#   - 'frob/unlimited-ocr:q8_0'    (has tag) → _parse_unlimited (community GGUF)
 register_format("deepseek*", _parse_deepseek)
-register_format("*unlimited-ocr*", _parse_deepseek)
+register_format("*unlimited-ocr", _parse_deepseek)   # official, no :tag
+register_format("*unlimited-ocr:*", _parse_unlimited)  # community GGUF with :tag
 # Plain-text fallback is the default for everything else (Qwen3-VL, GLM-4.5V, ...)
