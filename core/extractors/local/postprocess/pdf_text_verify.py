@@ -46,9 +46,10 @@ _LABEL_PATTERNS = {
     "amount_in_figures": re.compile(
         r"(?:价税合计|金额合计).{0,4}(?:大写).{0,60}(?:小写)[）)]?\s*[¥￥]?\s*([\d,]+\.\d{2})"
     ),
-    # Party names: 名称：<value>. Boundary = " 销 " (seller marker) or EOL.
-    "buyer_name": re.compile(r"名称[:：]\s*(.+?)(?=\s+销\s|$)", re.MULTILINE),
-    "seller_name": re.compile(r"名称[:：]\s*(.+?)(?=\s+销\s|$)", re.MULTILINE),
+    # Party names: 名称：<value> or space-split "名 称 <value>".
+    # Boundary = " 销 "/" 售 " (seller marker) or EOL.
+    "buyer_name": re.compile(r"名\s*称\s*[:：]?\s*(.+?)(?=\s+[销售]\s|$)", re.MULTILINE),
+    "seller_name": re.compile(r"名\s*称\s*[:：]?\s*(.+?)(?=\s+[销售]\s|$)", re.MULTILINE),
 }
 
 # Fields we attempt to verify. Each maps to a label pattern (if known)
