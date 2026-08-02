@@ -93,6 +93,17 @@ class PdfTextVerify(PostProcessor):
         for field in _VERIFY_FIELDS:
             ocr_value = getattr(parsed, field, "")
 
+            # Doc-type-aware guard: the VAT-style buyer/seller name
+            # pattern (名称：<value>) only makes sense for VAT invoices.
+            # For medical receipts, buyer_name comes from 交款人 (payer);
+            # for train tickets, from the passenger ID line. Applying the
+            # VAT 名称： pattern there grabs the wrong text (item table
+            # header, company name, etc.). Only verify names for VAT.
+            if field in ("buyer_name", "seller_name") and not (
+                "增值税" in parsed.invoice_type
+            ):
+                continue
+
             # 1. Try label-anchored extraction from pdfplumber ground truth
             ground_truth = self._extract_from_text(field, full_text)
 
