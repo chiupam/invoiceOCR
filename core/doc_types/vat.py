@@ -132,8 +132,11 @@ class VatInvoice(DocType):
                     break
 
         # 普票 may not have a separate 发票代码 — derive from the number prefix.
+        # ONLY for traditional 普票 (8-digit 发票号码). 数电发票 has a 20-digit
+        # 发票号码 and NO 发票代码 — deriving a fake code from its prefix is
+        # wrong (issue #11). Guard by number length.
         code, number = data.get("发票代码", ""), data.get("发票号码", "")
-        if not code and number and len(number) > 10:
+        if not code and number and len(number) <= 10:
             code = number[:10]
             logger.info(f"从发票号码中提取发票代码: {code}")
             data["发票代码"] = code

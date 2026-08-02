@@ -184,9 +184,12 @@ def process_invoice_image(image_path, project_id=None, doc_type='vat', backend='
         
         from app.models import Invoice, InvoiceItem, db
         
-        # 检查是否成功识别出发票代码和号码
-        if not invoice_code or not invoice_number:
-            current_app.logger.warning(f"识别失败: 文件 {image_path} 未能识别出发票代码或号码")
+        # 检查是否成功识别出发票号码。
+        # 注意：数电发票（全电发票）和铁路电子客票没有"发票代码"字段，
+        # 只有 20 位发票号码。传统增值税发票才有 代码+号码。所以这里
+        # 只要求发票号码非空即可保存（见 issue #11）。
+        if not invoice_number:
+            current_app.logger.warning(f"识别失败: 文件 {image_path} 未能识别出发票号码")
             # 保存失败文件的副本用于后续分析
             basename = os.path.basename(image_path)
             if not basename.startswith('failed_'):
@@ -200,76 +203,64 @@ def process_invoice_image(image_path, project_id=None, doc_type='vat', backend='
             
             return {
                 'success': False,
-                'message': '未能识别出发票代码或号码，请检查文件清晰度或文件内容是否为有效发票'
+                'message': '未能识别出发票号码，请检查文件清晰度或文件内容是否为有效发票'
             }
         
-        if invoice_code and invoice_number:
+        # 查重：优先用 (代码, 号码)；数电发票没有代码时只用号码查重。
+        existing_invoice = None
+        if invoice_code:
             existing_invoice = Invoice.query.filter_by(
                 invoice_code=invoice_code,
                 invoice_number=invoice_number
             ).first()
-            
-            if existing_invoice:
-                # 如果发票已存在，也应该删除临时文件
-                try:
-                    os.remove(image_path)
-                    current_app.logger.info(f"发票已存在，删除临时文件: {image_path}")
-                except Exception as e:
-                    current_app.logger.warning(f"发票已存在，但无法删除临时文件: {image_path}, 错误: {str(e)}")
-                
-                return {
-                    'success': True,
-                    'message': f'发票已存在 (ID: {existing_invoice.id})',
-                    'invoice_id': existing_invoice.id
-                }
-            
-            # 使用发票代码和号码创建新的文件名
-            filename = secure_filename(os.path.basename(image_path))
-            
-            # 确保文件名不带temp_前缀
-            if filename.startswith('temp_'):
-                filename = filename[5:]  # 移除temp_前缀
-            
-            # 获取原始文件的扩展名，确保保留
-            file_ext = os.path.splitext(filename)[1].lower()
-            
-            # 如果没有扩展名，根据文件内容推断
-            if not file_ext:
-                # 检查是否是PDF文件
-                try:
-                    with open(image_path, 'rb') as f:
-                        header = f.read(4)
-                        if header == b'%PDF':
-                            file_ext = '.pdf'
-                        else:
-                            file_ext = '.jpg'  # 默认为jpg
-                except Exception:
-                    file_ext = '.jpg'  # 失败时默认为jpg
-            
-            new_filename = f"{invoice_code}{invoice_number}{file_ext}"
-            current_app.logger.info(f"生成新文件名: {new_filename}")
         else:
-            # 如果没有识别出代码和号码，使用原文件名但移除temp_前缀
-            basename = os.path.basename(image_path)
-            file_ext = os.path.splitext(basename)[1].lower()
-            
-            if basename.startswith('temp_'):
-                new_filename = basename[5:] # 移除temp_前缀
-            else:
-                new_filename = basename
-                
-            # 确保有正确的文件扩展名
-            if not file_ext:
-                try:
-                    with open(image_path, 'rb') as f:
-                        header = f.read(4)
-                        if header == b'%PDF':
-                            new_filename = f"{os.path.splitext(new_filename)[0]}.pdf"
-                except Exception:
-                    pass
-                
-            current_app.logger.warning(f"使用普通文件名: {new_filename}")
+            existing_invoice = Invoice.query.filter_by(
+                invoice_number=invoice_number
+            ).first()
         
+        if existing_invoice:
+            # 如果发票已存在，也应该删除临时文件
+            try:
+                os.remove(image_path)
+                current_app.logger.info(f"发票已存在，删除临时文件: {image_path}")
+            except Exception as e:
+                current_app.logger.warning(f"发票已存在，但无法删除临时文件: {image_path}, 错误: {str(e)}")
+
+            return {
+                'success': True,
+                'message': f'发票已存在 (ID: {existing_invoice.id})',
+                'invoice_id': existing_invoice.id
+            }
+
+        # 使用发票代码和号码创建新的文件名（数电发票无代码则只用号码）
+        filename = secure_filename(os.path.basename(image_path))
+
+        # 确保文件名不带temp_前缀
+        if filename.startswith('temp_'):
+            filename = filename[5:]  # 移除temp_前缀
+
+        # 获取原始文件的扩展名，确保保留
+        file_ext = os.path.splitext(filename)[1].lower()
+
+        # 如果没有扩展名，根据文件内容推断
+        if not file_ext:
+            # 检查是否是PDF文件
+            try:
+                with open(image_path, 'rb') as f:
+                    header = f.read(4)
+                    if header == b'%PDF':
+                        file_ext = '.pdf'
+                    else:
+                        file_ext = '.jpg'  # 默认为jpg
+            except Exception:
+                file_ext = '.jpg'  # 失败时默认为jpg
+
+        if invoice_code:
+            new_filename = f"{invoice_code}{invoice_number}{file_ext}"
+        else:
+            new_filename = f"{invoice_number}{file_ext}"
+        current_app.logger.info(f"生成新文件名: {new_filename}")
+
         # 最终文件路径
         upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
         final_file_path = os.path.join(upload_folder, new_filename)
