@@ -230,11 +230,10 @@ class VatParser(Parser):
             # Skip header row
             if "项目名称" in text and "金额" in text:
                 continue
-            # Skip total row
-            if "合计" in text and "金额" in text:
-                continue
-            # Skip 价税合计
-            if "价税合计" in text:
+            # Skip total rows: 合计 / 价税合计 / （大写）…（小写）
+            # (The 合计 row may not literally contain 金额, e.g. "合计
+            # ¥23.87" or "合计¥ ¥" — match the markers directly.)
+            if any(t in text for t in ("合计", "价税合计", "（大写", "（小写", "(大写", "(小写")):
                 continue
             amounts = _RE_AMOUNT.findall(text)
             if not amounts:
