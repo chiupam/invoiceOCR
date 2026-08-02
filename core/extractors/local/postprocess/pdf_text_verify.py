@@ -125,6 +125,9 @@ class PdfTextVerify(PostProcessor):
                 # Empty but filled by ground truth — still counts as processed
                 if not ocr_value and ground_truth:
                     setattr(parsed, field, ground_truth)
+                    # Refresh ISO date when raw date is filled
+                    if field == "invoice_date_raw":
+                        parsed.invoice_date = _normalize_date(ground_truth)
                     parsed.corrections.append({
                         "field": field,
                         "old": "",
@@ -137,6 +140,11 @@ class PdfTextVerify(PostProcessor):
                 f"PdfTextVerify: {field} corrected '{ocr_value}' -> '{ground_truth}'"
             )
             setattr(parsed, field, ground_truth)
+            # When fixing the raw date, refresh the ISO date too —
+            # otherwise the DB stores the raw date but no standardized
+            # date (invoice_date stays empty).
+            if field == "invoice_date_raw":
+                parsed.invoice_date = _normalize_date(ground_truth)
             parsed.corrections.append({
                 "field": field,
                 "old": ocr_value,
@@ -226,6 +234,23 @@ def _normalize_amount(amount_str: str) -> str:
     """Normalize to ¥X.XX format (strip commas, remove existing ¥/￥)."""
     cleaned = amount_str.replace("¥", "").replace("￥", "").replace(",", "").strip()
     return f"¥{cleaned}"
+
+
+_RE_DATE_CN = re.compile(r"(\d{4})年(\d{1,2})月(\d{1,2})日")
+_RE_DATE_ISO = re.compile(r"(\d{4})-(\d{1,2})-(\d{1,2})")
+
+
+def _normalize_date(raw: str) -> str:
+    """Convert a raw CN/ISO date string to ISO YYYY-MM-DD."""
+    if not raw:
+        return ""
+    m = _RE_DATE_CN.search(raw)
+    if m:
+        return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+    m = _RE_DATE_ISO.search(raw)
+    if m:
+        return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+    return raw
 
 
 def _levenshtein(a: str, b: str, max_dist: int) -> int | None:
