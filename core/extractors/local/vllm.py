@@ -87,11 +87,29 @@ class VLLMOCRBackend(LocalBackend):
                 "Set VLLM_OCR_ENDPOINT or pass endpoint=..."
             )
 
-        # Read file as base64 data URL
-        with open(file_path, "rb") as f:
-            file_bytes = f.read()
+        # Read file as base64 data URL.
+        # PDFs are rendered to PNG first: most VLM servers (Ollama,
+        # local vLLM) accept images but NOT raw PDF data URLs.
+        # DeepSeek-OCR on SiliconFlow accepts PDFs directly, but the
+        # same request works with a rendered first page too — so we
+        # always render PDFs to PNG for maximum compatibility.
         ext = file_path.lower().rsplit(".", 1)[-1]
-        mime = "application/pdf" if ext == "pdf" else f"image/{ext}"
+        if ext == "pdf":
+            try:
+                import fitz  # PyMuPDF
+                doc = fitz.open(file_path)
+                pix = doc[0].get_pixmap(matrix=fitz.Matrix(2.0, 2.0))
+                file_bytes = pix.tobytes("png")
+                mime = "image/png"
+            except ImportError:
+                # No fitz — fall back to sending the PDF bytes raw
+                with open(file_path, "rb") as f:
+                    file_bytes = f.read()
+                mime = "application/pdf"
+        else:
+            with open(file_path, "rb") as f:
+                file_bytes = f.read()
+            mime = f"image/{ext}"
         data_url = f"data:{mime};base64,{base64.b64encode(file_bytes).decode()}"
 
         # Call the endpoint. Only send Bearer header if we have a key.
