@@ -37,6 +37,17 @@
                                         </select>
                                         <small class="form-text text-muted">决定调用哪个 OCR 接口。增值税发票最常见；选错可以稍后在编辑页修正。</small>
                                     </div>
+
+                                    <!-- 选择 OCR 后端 -->
+                                    <div class="form-group">
+                                        <label for="backend">识别后端</label>
+                                        <select class="form-control" id="backend" name="backend">
+                                            {% for b in backends %}
+                                            <option value="{{ b.name }}" {% if loop.first %}selected{% endif %}>{{ b.display_name }} ({{ b.name }})</option>
+                                            {% endfor %}
+                                        </select>
+                                        <small class="form-text text-muted">tencent=腾讯云OCR（需密钥）；local=本地pdfplumber文本提取（免费，适合电子PDF）；siliconflow=DeepSeek-OCR（免费额度，适合扫描件/图片）。</small>
+                                    </div>
                                     
                                     <div class="mb-4 text-center">
                                         <div class="drop-zone" id="dropZone">

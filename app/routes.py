@@ -14,6 +14,7 @@ import re
 from .models import db, Invoice, InvoiceItem, Project, Settings
 from .utils import save_uploaded_file, process_invoice_image, get_invoice_statistics, export_invoice, delete_invoice, export_project
 from core.doc_types import get as _get_doc_type, all_types as _all_doc_types
+from core.extractors import all_backends as _all_backends
 
 # 创建蓝图
 main = Blueprint('main', __name__)
@@ -297,9 +298,18 @@ def upload():
                 current_app.logger.warning(f"未知的 doc_type={doc_type!r}, 回退到 'vat'")
                 doc_type = 'vat'
 
+            # 获取 OCR 后端（'tencent' / 'siliconflow' / 'local'）。
+            # 默认为 'tencent' 保持向后兼容。
+            backend = (request.form.get('backend', '') or 'tencent').strip().lower()
+            from core.extractors import get_backend as _get_backend
+            if _get_backend(backend) is None:
+                current_app.logger.warning(f"未知的 backend={backend!r}, 回退到 'tencent'")
+                backend = 'tencent'
+
             # 处理发票文件
             result = process_invoice_image(
                 temp_file_path, project_id=project_id, doc_type=doc_type,
+                backend=backend,
             )
             
             if not result.get('success'):
@@ -351,7 +361,8 @@ def upload():
                           projects=projects,
                           default_project_id=default_project_id,
                           current_project_id=default_project_id,
-                          doc_types=_all_doc_types())
+                          doc_types=_all_doc_types(),
+                          backends=_all_backends())
 
 
 @main.route('/invoice/<int:invoice_id>')
