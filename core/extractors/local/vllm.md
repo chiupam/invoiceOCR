@@ -68,12 +68,21 @@ export VLLM_OCR_MODEL=frob/unlimited-ocr:q8_0
 (~22s per invoice, core fields extracted) but is non-deterministic —
 the table block sometimes truncates, losing line items.
 
-The **official** Baidu Unlimited-OCR (https://recipes.vllm.ai/baidu/Unlimited-OCR)
-is a DeepSeek-OCR-lineage model that emits the same `<|ref|>/<|det|>`
-grounding tokens as DeepSeek-OCR — it requires a GPU (≥8GB VRAM) and
-the dedicated vLLM image (`vllm/vllm-openai:unlimited-ocr`) with a
-custom n-gram logits processor. Our format parser routes it correctly
-(`_parse_deepseek`); only the serving hardware is the constraint.
+The **official** Baidu Unlimited-OCR (https://recipes.vllm.ai/baidu/Unlimited-OCR,
+HF: https://huggingface.co/baidu/Unlimited-OCR) is a DeepSeek-OCR-lineage
+model that emits the same `<|ref|>/<|det|>` grounding tokens as
+DeepSeek-OCR — it requires a GPU (≥8GB VRAM) and the dedicated vLLM
+image (`vllm/vllm-openai:unlimited-ocr`) with a custom n-gram logits
+processor. Our format parser routes it correctly (`_parse_deepseek`);
+only the serving hardware is the constraint.
+
+**Why the community GGUF behaves differently:** the official HF repo is
+safetensors + custom Python modeling code (`UnlimitedOCRForCausalLM`,
+`deepencoder.py`, DeepSeek-V2 lineage). The Ollama GGUF is a llama.cpp
+conversion that loses the custom decode pipeline — most importantly the
+n-gram repetition guard. That's why it emits a different output shape
+(`label [bbox]content`) and is non-deterministic. The GGUF is a
+best-effort fallback, not a faithful port of the official model.
 
 Also tested, both failed on this 11GB CPU-only host:
 - `deepseek-ocr:latest` (6.7GB GGUF) — didn't fit, Ollama timed out
