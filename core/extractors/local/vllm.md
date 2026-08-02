@@ -38,12 +38,12 @@ Other hosted options (untested): `Qwen/Qwen3-VL-32B-Instruct`,
 `Qwen/Qwen3-VL-30B-A3B-Instruct`, `zai-org/GLM-4.5V` (智谱视觉模型).
 Note: 智谱 GLM-OCR (dedicated OCR) is NOT hosted on SiliconFlow.
 
-### Ollama (local) — caveat for CPU-only hardware
+### Ollama (local)
 
 ```bash
-ollama pull deepseek-ocr
+ollama pull frob/unlimited-ocr:q8_0   # recommended (3.1GB, works on CPU)
 export VLLM_OCR_ENDPOINT=http://localhost:11434/v1
-export VLLM_OCR_MODEL=deepseek-ocr
+export VLLM_OCR_MODEL=frob/unlimited-ocr:q8_0
 # no VLLM_OCR_API_KEY needed
 ```
 
@@ -58,10 +58,14 @@ with 11GB RAM:
 - `glm-ocr:latest` (2.2GB, 0.9B) — fits in RAM but the model falls into a
   repetition loop (10K+ chars of `./image.png` / ```skip``` garbage);
   ~5 min per invoice.
+- **`frob/unlimited-ocr:q8_0` (3.1GB) — WORKS.** Fits in RAM, ~22s per
+  invoice on a 6-core CPU, extracts all fields correctly (tested on a
+  JD 数电发票). This is the recommended local Ollama model.
 
-A GPU box would make both work, but on CPU-only hardware the hosted
-SiliconFlow path (DeepSeek-OCR / Qwen3-VL) is dramatically more reliable.
-The Ollama path is documented as an option for users with GPUs.
+A GPU box would also make GLM-OCR / DeepSeek-OCR work, but on
+CPU-only hardware use `frob/unlimited-ocr:q8_0` locally or the hosted
+SiliconFlow path (DeepSeek-OCR / Qwen3-VL), which is dramatically more
+reliable.
 
 ### Local vLLM server — requires GPU
 
