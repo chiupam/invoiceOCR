@@ -283,12 +283,13 @@ class MedicalParser(Parser):
                 if not amounts:
                     continue
                 amount = amounts[-1]
-                # Strip amount from text to get name
-                name = text
-                for a in amounts:
-                    name = name.replace(a, " ", 1).strip()
-                # Strip trailing qty/unit/remark noise: "1.00次" etc.
-                name = re.sub(r"\s*\d+(\.\d+)?[项次支盒袋剂片]\s*\S*", " ", name)
+                # Strip the PRICE amount (last) from text to get name.
+                # Quantities like 1.00项 are NOT amounts — split the name
+                # at the first qty (number+unit) BEFORE stripping. The
+                # text may have no space before the qty (blocks join
+                # without separator).
+                name = re.split(r"\d+(\.\d+)?[项次支盒袋剂片]+\s*", text, maxsplit=1)[0]
+                name = name.replace(amount, " ", 1).strip()
                 name = name.strip()
                 if len(name) < 2:
                     continue
