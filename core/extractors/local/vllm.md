@@ -47,6 +47,13 @@ export VLLM_OCR_MODEL=deepseek-ocr
 # no VLLM_OCR_API_KEY needed
 ```
 
+**Caveat (tested 2026-08-02):** local Ollama OCR on commodity CPU is
+painful. We tested GLM-OCR (glm-ocr:latest, 2.2GB/0.9B) on a 6-core
+i7-13620H with 11GB RAM — it fell into a repetition loop (10K+ chars of
+`./image.png`/```skip``` garbage) and took ~5 min per invoice. A GPU box
+would likely work, but on CPU-only hardware the hosted SiliconFlow path
+(DeepSeek-OCR / Qwen3-VL) is dramatically more reliable.
+
 ### Local vLLM server
 
 ```bash
