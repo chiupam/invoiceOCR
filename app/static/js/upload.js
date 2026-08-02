@@ -212,6 +212,15 @@ document.addEventListener('DOMContentLoaded', function() {
             if (projectId) {
                 formData.append('project_id', projectId);
             }
+            // Include doc_type + backend selections (added in multi-backend PR)
+            const docTypeEl = document.querySelector('#doc_type');
+            if (docTypeEl) {
+                formData.append('doc_type', docTypeEl.value);
+            }
+            const backendEl = document.querySelector('#backend');
+            if (backendEl) {
+                formData.append('backend', backendEl.value);
+            }
             
             // 更新进度显示
             currentFileNum.textContent = (index + 1).toString();
