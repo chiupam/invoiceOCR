@@ -278,6 +278,13 @@ class InvoiceItem(db.Model):
 
     @classmethod
     def from_item_data(cls, invoice_id, item_data):
+        # Strip a leading ¥/￥ from amount/price if present (parsers may
+        # already format them as ¥X.XX; the template re-adds the symbol).
+        def _strip_currency(v):
+            if isinstance(v, str):
+                return v.replace("¥", "").replace("￥", "").strip()
+            return v
+
         return cls(
             invoice_id=invoice_id,
             name=item_data.get('Name', item_data.get('项目名称',
@@ -286,13 +293,13 @@ class InvoiceItem(db.Model):
                  item_data.get('Spec', item_data.get('specification', '')))),
             unit=item_data.get('Unit', item_data.get('单位', item_data.get('unit', ''))),
             quantity=item_data.get('Quantity', item_data.get('数量', item_data.get('quantity', ''))),
-            price=item_data.get('Price', item_data.get('单价',
-                 item_data.get('UnitPrice', item_data.get('unit_price', '')))),
-            amount=item_data.get('Amount', item_data.get('金额',
-                 item_data.get('AmountWithoutTax', item_data.get('amount', '')))),
+            price=_strip_currency(item_data.get('Price', item_data.get('单价',
+                 item_data.get('UnitPrice', item_data.get('unit_price', ''))))),
+            amount=_strip_currency(item_data.get('Amount', item_data.get('金额',
+                 item_data.get('AmountWithoutTax', item_data.get('amount', ''))))),
             tax_rate=item_data.get('TaxRate', item_data.get('税率', item_data.get('tax_rate', ''))),
-            tax=item_data.get('Tax', item_data.get('税额',
-                 item_data.get('TaxAmount', item_data.get('tax', ''))))
+            tax=_strip_currency(item_data.get('Tax', item_data.get('税额',
+                 item_data.get('TaxAmount', item_data.get('tax', '')))))
         )
 
 
