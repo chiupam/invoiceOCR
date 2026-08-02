@@ -13,7 +13,7 @@ protocol. Point it at any server that can serve an OCR-capable VLM.
 
 ## Providers / models
 
-### SiliconFlow (hosted, free tier)
+### SiliconFlow (hosted, free tier) — recommended
 
 Default configuration — works out of the box with `VLLM_OCR_API_KEY` set.
 
@@ -38,7 +38,7 @@ Other hosted options (untested): `Qwen/Qwen3-VL-32B-Instruct`,
 `Qwen/Qwen3-VL-30B-A3B-Instruct`, `zai-org/GLM-4.5V` (智谱视觉模型).
 Note: 智谱 GLM-OCR (dedicated OCR) is NOT hosted on SiliconFlow.
 
-### Ollama (local)
+### Ollama (local) — caveat for CPU-only hardware
 
 ```bash
 ollama pull deepseek-ocr
@@ -48,19 +48,31 @@ export VLLM_OCR_MODEL=deepseek-ocr
 ```
 
 **Caveat (tested 2026-08-02):** local Ollama OCR on commodity CPU is
-painful. We tested GLM-OCR (glm-ocr:latest, 2.2GB/0.9B) on a 6-core
-i7-13620H with 11GB RAM — it fell into a repetition loop (10K+ chars of
-`./image.png`/```skip``` garbage) and took ~5 min per invoice. A GPU box
-would likely work, but on CPU-only hardware the hosted SiliconFlow path
-(DeepSeek-OCR / Qwen3-VL) is dramatically more reliable.
+unworkable for the 3B DeepSeek-OCR. We tested on a 6-core i7-13620H
+with 11GB RAM:
 
-### Local vLLM server
+- `deepseek-ocr:latest` (6.7GB GGUF) — Ollama couldn't load it; gave
+  up after 8m30s with HTTP 499 "load failed: timed out waiting for
+  llama-server to start". The 6.7GB GGUF needs ~8GB just to mmap,
+  leaving no room for KV cache on an 11GB host.
+- `glm-ocr:latest` (2.2GB, 0.9B) — fits in RAM but the model falls into a
+  repetition loop (10K+ chars of `./image.png` / ```skip``` garbage);
+  ~5 min per invoice.
+
+A GPU box would make both work, but on CPU-only hardware the hosted
+SiliconFlow path (DeepSeek-OCR / Qwen3-VL) is dramatically more reliable.
+The Ollama path is documented as an option for users with GPUs.
+
+### Local vLLM server — requires GPU
 
 ```bash
-# serve DeepSeek-OCR or Qwen3-VL with your own vLLM
+# serve DeepSeek-OCR or Qwen3-VL with your own vLLM (needs CUDA/ROCm)
 export VLLM_OCR_ENDPOINT=http://localhost:8000/v1
 export VLLM_OCR_MODEL=deepseek-ai/DeepSeek-OCR
 ```
+
+vLLM does not support CPU execution meaningfully. For a self-hosted GPU
+box, use vLLM. For a CPU box, use the hosted SiliconFlow path above.
 
 ### llama.cpp / LM Studio
 
@@ -73,7 +85,7 @@ export VLLM_OCR_MODEL=deepseek-ocr-q4
 
 The backend parses two output shapes:
 
-1. **Grounding boxes** (DeepSeek-OCR): `<|ref|>text<|/ref|><|det|>[[x0,y0,x1,y1]]<|/det|>`
+1. **Grounding boxes** (DeepSeek-OCR): `<|ref|>text<|/ref|><|det|>[[x0,y0,x1,y1]]</|/det|>`
    → parsed into `TextBlock(bbox=...)` for coordinate-aware parsing.
 
 2. **Plain labeled text** (Qwen3-VL, GLM-4.5V, etc.): one field per line
