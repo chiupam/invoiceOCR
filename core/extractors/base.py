@@ -91,6 +91,13 @@ class ParsedInvoice:
     issuer: str = ""                       # 开票人 (some receipts have this)
     remarks: str = ""                      # 备注 (free-text blob)
 
+    # Catch-all for fields not mapped to typed attributes. The legacy
+    # Tencent formatter produces a rich dict (其他信息 with 业务流水号,
+    # 门诊号, 收款单位, ...; 医保信息; 处理时间). When converting that
+    # dict → ParsedInvoice, everything that doesn't fit a typed field
+    # goes here so the round-trip back to the dict is lossless.
+    extra: dict = field(default_factory=dict)
+
     # Type-specific blocks (each type populates only its own)
     medical_info: dict = field(default_factory=dict)
     travel_info: dict = field(default_factory=dict)

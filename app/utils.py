@@ -9,8 +9,6 @@ from werkzeug.utils import secure_filename
 from flask import current_app
 
 # 导入核心功能模块
-from core.ocr_api import OCRClient
-from core.invoice_formatter import InvoiceFormatter
 from core.invoice_export import InvoiceExporter
 
 # 导入数据库模型
@@ -117,31 +115,18 @@ def process_invoice_image(image_path, project_id=None, doc_type='vat', backend='
 
         # --- 第二步: 回退到所选 OCR 后端（仅当本地提取没成功） ---
         if formatted_data is None and backend in ('vllm', 'tencent'):
-            if backend == 'vllm':
-                # --- vllm 后端 (VLM OCR) ---
-                from core.extractors import get_backend
-                extractor = get_backend('vllm')
-                if extractor is None or not extractor.is_available():
-                    raise RuntimeError(
-                        f"后端 'vllm' 不可用。请检查 VLLM_OCR_ENDPOINT / VLLM_OCR_API_KEY 配置。"
-                    )
-                parsed = extractor.extract(image_path, doc_type)
-                from core.extractors.to_formatted import parsed_to_formatted
-                formatted_data = parsed_to_formatted(parsed)
-            else:
-                # --- 原 Tencent 路径 ---
-                # 创建OCR API客户端
-                ocr_api = OCRClient()
-
-                # 调用OCR API识别发票（按 doc_type 路由到对应端点）
-                response_json = ocr_api.recognize(
-                    image_path=image_path, doc_type=doc_type,
+            # 所有后端统一走 Backend 抽象: extract() -> ParsedInvoice -> dict
+            from core.extractors import get_backend
+            extractor = get_backend(backend)
+            if extractor is None or not extractor.is_available():
+                raise RuntimeError(
+                    f"后端 '{backend}' 不可用。请检查配置 "
+                    f"(vllm: VLLM_OCR_ENDPOINT/VLLM_OCR_API_KEY; "
+                    f"tencent: TENCENT_SECRET_ID/TENCENT_SECRET_KEY)。"
                 )
-
-                # 格式化发票数据（按 doc_type 路由到对应 DocType）
-                formatted_data = InvoiceFormatter.format_invoice_data(
-                    json_string=response_json, doc_type=doc_type,
-                )
+            parsed = extractor.extract(image_path, doc_type)
+            from core.extractors.to_formatted import parsed_to_formatted
+            formatted_data = parsed_to_formatted(parsed)
 
         if formatted_data is None:
             raise RuntimeError(
