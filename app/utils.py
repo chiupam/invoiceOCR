@@ -52,7 +52,7 @@ def save_uploaded_file(file):
     return None
 
 
-def process_invoice_image(image_path, project_id=None, doc_type='vat'):
+def process_invoice_image(image_path, project_id=None, doc_type='vat', backend='tencent'):
     """
     处理发票文件，识别并保存发票数据
 
@@ -60,30 +60,47 @@ def process_invoice_image(image_path, project_id=None, doc_type='vat'):
         image_path: 文件在服务器上的完整路径
         project_id: 项目ID，默认为None
         doc_type: 文档类型 id（'vat' / 'medical' / 'train' / …），决定
-            调用哪个腾讯云 OCR 端点以及使用哪个 DocType 格式化。
+            调用哪个 OCR 端点以及使用哪个 DocType 格式化。
             默认为 'vat' 保持向后兼容。
+        backend: OCR 后端（'tencent' / 'siliconflow' / ...）。
+            - 'tencent': 腾讯云 OCR（默认，向后兼容）
+            - 'siliconflow': SiliconFlow DeepSeek-OCR + pdfplumber 后处理
+            - 'local': 本地 pdfplumber（纯文本提取，无 OCR）
 
     返回:
         包含success标志和结果的字典
     """
-    # 创建OCR API客户端
-    ocr_api = OCRClient()
-
     try:
         # 记录开始处理的文件
         current_app.logger.info(
-            f"开始处理文件: {image_path} (doc_type={doc_type})"
+            f"开始处理文件: {image_path} (doc_type={doc_type}, backend={backend})"
         )
 
-        # 调用OCR API识别发票（按 doc_type 路由到对应端点）
-        response_json = ocr_api.recognize(
-            image_path=image_path, doc_type=doc_type,
-        )
+        if backend in ('siliconflow', 'local'):
+            # --- 新后端路径: local backend (DeepSeek-OCR 或 pdfplumber) ---
+            from core.extractors import get_backend
+            extractor = get_backend(backend)
+            if extractor is None or not extractor.is_available():
+                raise RuntimeError(
+                    f"后端 '{backend}' 不可用。请检查配置（如 SF_API_KEY）。"
+                )
+            parsed = extractor.extract(image_path, doc_type)
+            from core.extractors.to_formatted import parsed_to_formatted
+            formatted_data = parsed_to_formatted(parsed)
+        else:
+            # --- 原 Tencent 路径 ---
+            # 创建OCR API客户端
+            ocr_api = OCRClient()
 
-        # 格式化发票数据（按 doc_type 路由到对应 DocType）
-        formatted_data = InvoiceFormatter.format_invoice_data(
-            json_string=response_json, doc_type=doc_type,
-        )
+            # 调用OCR API识别发票（按 doc_type 路由到对应端点）
+            response_json = ocr_api.recognize(
+                image_path=image_path, doc_type=doc_type,
+            )
+
+            # 格式化发票数据（按 doc_type 路由到对应 DocType）
+            formatted_data = InvoiceFormatter.format_invoice_data(
+                json_string=response_json, doc_type=doc_type,
+            )
 
         # 提取关键信息用于返回
         invoice_data = {
