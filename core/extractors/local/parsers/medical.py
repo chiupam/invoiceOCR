@@ -219,14 +219,14 @@ class MedicalParser(Parser):
         This is best-effort — multi-column items may merge. Post-processing
         cross-validation helps catch OCR errors.
         """
-        # Find start (header has 项目名称) and end (合计 line)
+        # Find start (header has 项目名称) and end (金额合计 total row)
         start_idx = None
         end_idx = None
         for i, b in enumerate(blocks):
             if start_idx is None and b.text == "项目名称":
                 start_idx = i
-            if start_idx is not None and ("合计" in b.text and "金额" not in b.text):
-                # Found 合计 (not 金额合计)
+            if start_idx is not None and "金额合计" in b.text:
+                # 金额合计（大写）... is the total row — END of items
                 end_idx = i
                 break
         if start_idx is None:
