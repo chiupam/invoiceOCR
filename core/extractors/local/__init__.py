@@ -1,4 +1,4 @@
-"""Local backend: text+bbox OCR engines (pdfplumber, DeepSeek-OCR, etc).
+"""Local backend: text+bbox OCR engines (vLLM-compatible, pdfplumber, etc).
 
 Unlike cloud backends (Tencent, Baidu), local backends return text+bbox
 blocks from the OCR engine. The backend then:
@@ -10,11 +10,12 @@ blocks from the OCR engine. The backend then:
      correct any hallucinated fields.
 
 The LocalBackend ABC handles the dispatch boilerplate so subclasses
-(DeepSeek-OCR via SiliconFlow, local vLLM server, etc.) only need to
-implement `_call_ocr()` which returns the raw OCR output.
+(VLLM-compatible OCR like SiliconFlow / Ollama / local vLLM, pure
+pdfplumber, etc.) only need to implement `_call_ocr()` which returns the
+raw OCR output.
 """
 from .base import LocalBackend, pdf_to_blocks  # noqa: F401
-from . import siliconflow  # noqa: F401  -- registers "siliconflow" backend
+from . import vllm  # noqa: F401  -- registers "siliconflow", "ollama", "vllm" backends
 from . import pdfplumber  # noqa: F401  -- registers "local" backend
 from . import parsers  # noqa: F401  -- registers parsers
 from . import postprocess  # noqa: F401  -- registers post-processors
