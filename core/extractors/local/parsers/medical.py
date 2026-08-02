@@ -166,36 +166,44 @@ class MedicalParser(Parser):
 
         Uses proper Y-clustering (not integer binning) so blocks whose
         Y values straddle a bin boundary stay on the same line.
+        Blocks are clustered WITHIN each page — never across pages,
+        otherwise rows at the same Y on different pages merge.
         """
         if not blocks:
             return ""
-        # Cluster by Y (4pt tolerance)
-        sorted_blocks = sorted(blocks, key=lambda b: (b.bbox[1], b.bbox[0]))
-        bins: list[list] = []
-        cur_line: list = []
-        cur_y: Optional[float] = None
-        for b in sorted_blocks:
-            if cur_y is None or abs(b.bbox[1] - cur_y) <= 4.0:
-                cur_line.append(b)
-                cur_y = b.bbox[1] if cur_y is None else cur_y
-            else:
-                if cur_line:
-                    bins.append(sorted(cur_line, key=lambda x: x.bbox[0]))
-                cur_line = [b]
-                cur_y = b.bbox[1]
-        if cur_line:
-            bins.append(sorted(cur_line, key=lambda x: x.bbox[0]))
+        # Group by page first, then cluster by Y within each page
+        pages: dict[int, list] = {}
+        for b in blocks:
+            pages.setdefault(b.page, []).append(b)
 
         out_lines = []
-        for ws in bins:
-            parts = []
-            prev_x1 = None
-            for i, w in enumerate(ws):
-                if i > 0 and prev_x1 is not None and w.bbox[0] - prev_x1 > 30:
-                    parts.append(" ")
-                parts.append(w.text)
-                prev_x1 = w.bbox[2]
-            out_lines.append("".join(parts))
+        for page_idx in sorted(pages.keys()):
+            page_blocks = pages[page_idx]
+            sorted_blocks = sorted(page_blocks, key=lambda b: (b.bbox[1], b.bbox[0]))
+            bins: list[list] = []
+            cur_line: list = []
+            cur_y: Optional[float] = None
+            for b in sorted_blocks:
+                if cur_y is None or abs(b.bbox[1] - cur_y) <= 4.0:
+                    cur_line.append(b)
+                    cur_y = b.bbox[1] if cur_y is None else cur_y
+                else:
+                    if cur_line:
+                        bins.append(sorted(cur_line, key=lambda x: x.bbox[0]))
+                    cur_line = [b]
+                    cur_y = b.bbox[1]
+            if cur_line:
+                bins.append(sorted(cur_line, key=lambda x: x.bbox[0]))
+
+            for ws in bins:
+                parts = []
+                prev_x1 = None
+                for i, w in enumerate(ws):
+                    if i > 0 and prev_x1 is not None and w.bbox[0] - prev_x1 > 30:
+                        parts.append(" ")
+                    parts.append(w.text)
+                    prev_x1 = w.bbox[2]
+                out_lines.append("".join(parts))
         return "\n".join(out_lines)
 
     @staticmethod

@@ -80,7 +80,9 @@ def process_invoice_image(image_path, project_id=None, doc_type='vat', backend='
 
         # --- 第一步: 自动尝试本地 pdfplumber 文本提取（仅PDF） ---
         # 机器生成的电子发票是文本型PDF，pdfplumber 可无损提取（免费、ms级）。
-        # 提取成功就直接用，不调用任何 OCR 后端。
+        # 但 pdfplumber 只是"读文本"，不理解版面 —— 某些布局（如京东发票的
+        # 竖排"名 称"）会漏字段。所以只有提取到**完整核心字段**才用本地结果，
+        # 否则回退到 OCR 后端。
         formatted_data = None
         if image_path.lower().endswith('.pdf'):
             from core.extractors import get_backend
@@ -88,16 +90,25 @@ def process_invoice_image(image_path, project_id=None, doc_type='vat', backend='
             if local_pdf is not None and local_pdf.is_available():
                 try:
                     candidate = local_pdf.extract(image_path, doc_type)
-                    # 判断是否提取到了实质内容（有票号或金额即视为成功）
+                    # 判断本地提取是否"足够完整"：
+                    #  - 必须有发票号码或发票代码（唯一标识）
+                    #  - 必须有价税合计（金额是核心字段）
+                    #  - 必须有买卖双方名称或至少一个（VAT/医疗都应有）
+                    # 不满足任一条件 → 视为提取不完整，回退 OCR。
                     has_content = bool(
-                        candidate.invoice_code or candidate.invoice_number
-                        or candidate.amount_in_figures or candidate.items
+                        (candidate.invoice_code or candidate.invoice_number)
+                        and candidate.amount_in_figures
+                        and (candidate.buyer_name or candidate.seller_name)
                     )
                     if has_content:
                         from core.extractors.to_formatted import parsed_to_formatted
                         formatted_data = parsed_to_formatted(candidate)
                         current_app.logger.info(
                             f"本地 pdfplumber 提取成功 (doc_type={doc_type})"
+                        )
+                    else:
+                        current_app.logger.info(
+                            "本地 pdfplumber 提取不完整, 回退到 OCR"
                         )
                 except Exception as e:
                     current_app.logger.warning(
