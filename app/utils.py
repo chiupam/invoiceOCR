@@ -62,9 +62,10 @@ def process_invoice_image(image_path, project_id=None, doc_type='vat', backend='
         doc_type: 文档类型 id（'vat' / 'medical' / 'train' / …），决定
             调用哪个 OCR 端点以及使用哪个 DocType 格式化。
             默认为 'vat' 保持向后兼容。
-        backend: OCR 后端（'tencent' / 'siliconflow' / ...）。
+        backend: OCR 后端（'tencent' / 'vllm' / 'local'）。
             - 'tencent': 腾讯云 OCR（默认，向后兼容）
-            - 'siliconflow': SiliconFlow DeepSeek-OCR + pdfplumber 后处理
+            - 'vllm': 通用 VLM OCR（OpenAI-compatible 接口，默认 SiliconFlow
+              DeepSeek-OCR；可用 VLLM_OCR_ENDPOINT 指向 Ollama / 本地 vLLM 等）
             - 'local': 本地 pdfplumber（纯文本提取，无 OCR）
 
     返回:
@@ -76,8 +77,8 @@ def process_invoice_image(image_path, project_id=None, doc_type='vat', backend='
             f"开始处理文件: {image_path} (doc_type={doc_type}, backend={backend})"
         )
 
-        if backend in ('siliconflow', 'local'):
-            # --- 新后端路径: local backend (DeepSeek-OCR 或 pdfplumber) ---
+        if backend in ('vllm', 'local'):
+            # --- 新后端路径: local backend (VLM OCR 或 pdfplumber) ---
             from core.extractors import get_backend
             extractor = get_backend(backend)
             if extractor is None or not extractor.is_available():

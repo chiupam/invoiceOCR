@@ -46,7 +46,7 @@
                                             <option value="{{ b.name }}" {% if loop.first %}selected{% endif %}>{{ b.display_name }} ({{ b.name }})</option>
                                             {% endfor %}
                                         </select>
-                                        <small class="form-text text-muted">tencent=腾讯云OCR（需密钥）；local=本地pdfplumber文本提取（免费，适合电子PDF）；siliconflow=DeepSeek-OCR（免费额度，适合扫描件/图片）。</small>
+                                        <small class="form-text text-muted">tencent=腾讯云OCR（需密钥）；local=本地pdfplumber文本提取（免费，适合电子PDF）；vllm=通用VLM OCR（默认SiliconFlow DeepSeek-OCR，可用VLLM_OCR_ENDPOINT指向Ollama/本地vLLM）。</small>
                                     </div>
                                     
                                     <div class="mb-4 text-center">

@@ -298,7 +298,7 @@ def upload():
                 current_app.logger.warning(f"未知的 doc_type={doc_type!r}, 回退到 'vat'")
                 doc_type = 'vat'
 
-            # 获取 OCR 后端（'tencent' / 'siliconflow' / 'local'）。
+            # 获取 OCR 后端（'tencent' / 'vllm' / 'local'）。
             # 默认为 'tencent' 保持向后兼容。
             backend = (request.form.get('backend', '') or 'tencent').strip().lower()
             from core.extractors import get_backend as _get_backend

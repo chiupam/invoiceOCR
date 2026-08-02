@@ -1,26 +1,26 @@
-"""OpenAI-compatible VLM OCR backend.
+"""VLLM-compatible OCR backend (single backend, env-var configured).
 
-Works with any service that exposes `/v1/chat/completions` and supports
-image+text inputs. Concrete deployments include:
+Speaks the OpenAI-compatible `/v1/chat/completions` protocol with an
+image+text input. Any server that exposes that endpoint can serve
+DeepSeek-OCR (or another VLM OCR model):
 
-  - SiliconFlow (hosted)  - default endpoint, requires SF_API_KEY
-  - Ollama (local)         - http://localhost:11434/v1, no auth, needs
-                             the model pulled locally (e.g. `ollama pull
-                             deepseek-ocr`)
-  - Local vLLM server       - http://localhost:8000/v1, optional auth
-  - llama.cpp / LM Studio   - http://localhost:8080/v1 etc.
-  - Together.ai, OpenRouter, etc
+  - SiliconFlow (hosted, free tier)   — default endpoint
+  - Ollama (local)                    — `VLLM_OCR_ENDPOINT=http://localhost:11434/v1`
+  - Local vLLM server                 — `VLLM_OCR_ENDPOINT=http://localhost:8000/v1`
+  - llama.cpp / LM Studio              — `VLLM_OCR_ENDPOINT=http://localhost:8080/v1`
 
-The DeepSeek-OCR model (`PaddlePaddle/PaddleOCR-VL-1.5` on SiliconFlow,
-`deepseek-ocr` on Ollama) is loaded by the configured endpoint. The backend
-doesn't care which — it just POSTs to `{endpoint}/v1/chat/completions`.
+Configuration is entirely via env vars — no per-provider presets:
 
-Why VLLM, not "SiliconFlow":
-  The original implementation was named after SiliconFlow as the only
-  configured provider. But the protocol is OpenAI-compatible — any
-  vLLM-style server works. We keep SiliconFlow as the default endpoint
-  for backwards compatibility, but Ollama/local vLLM work without code
-  changes.
+  VLLM_OCR_API_KEY    optional Bearer token (SiliconFlow needs one;
+                      Ollama/local vLLM don't)
+  VLLM_OCR_MODEL      model name served by the endpoint
+                      default: deepseek-ai/DeepSeek-OCR
+  VLLM_OCR_ENDPOINT   base URL without /v1 suffix
+                      default: https://api.siliconflow.cn/v1
+
+The model returns text regions in grounding format:
+  <|ref|>text<|/ref|><|det|>[[x0,y0,x1,y1]]<|/det|>
+which we parse into TextBlock list for the layout parsers.
 """
 from __future__ import annotations
 
@@ -29,7 +29,6 @@ import logging
 import os
 import re
 import time
-from typing import Optional
 
 import requests
 
@@ -47,10 +46,10 @@ _RE_OCR_RE = re.compile(
 
 
 class VLLMOCRBackend(LocalBackend):
-    """OpenAI-compatible VLM OCR backend (SiliconFlow, Ollama, vLLM, …)."""
+    """OpenAI-compatible VLM OCR backend (SiliconFlow, Ollama, vLLM, ...)."""
 
     name = "vllm"
-    display_name = "VLM OCR (通用 vLLM 后端)"
+    display_name = "VLM OCR (OpenAI-compatible 后端)"
 
     def __init__(
         self,
@@ -58,29 +57,23 @@ class VLLMOCRBackend(LocalBackend):
         model: str | None = None,
         endpoint: str | None = None,
     ):
-        # Back-compat: SF_* env vars still work.
-        self.api_key = (
-            api_key
-            or os.environ.get("VLLM_OCR_API_KEY")
-            or os.environ.get("SF_API_KEY")
-            or ""
+        self.api_key = api_key or os.environ.get("VLLM_OCR_API_KEY", "")
+        self.model = model or os.environ.get(
+            "VLLM_OCR_MODEL", "deepseek-ai/DeepSeek-OCR"
         )
-        self.model = (
-            model
-            or os.environ.get("VLLM_OCR_MODEL")
-            or os.environ.get("SF_OCR_MODEL")
-            or "deepseek-ai/DeepSeek-OCR"
-        )
-        self.endpoint = (
-            endpoint
-            or os.environ.get("VLLM_OCR_ENDPOINT")
-            or os.environ.get("SF_OCR_ENDPOINT")
-            or "https://api.siliconflow.cn/v1"
+        self.endpoint = endpoint or os.environ.get(
+            "VLLM_OCR_ENDPOINT", "https://api.siliconflow.cn/v1"
         )
 
     def is_available(self) -> bool:
-        # Ollama + local vLLM typically don't require auth; we treat
-        # them as available if the endpoint responds.
+        """True if the endpoint responds to GET /models.
+
+        For Ollama/local vLLM this is a fast sub-second probe.
+        For SiliconFlow it requires the API key to be set (else 401).
+        """
+        if not self.endpoint:
+            return False
+        # If an API key is configured, require it to be non-empty.
         try:
             resp = requests.get(f"{self.endpoint}/models", timeout=5)
             return resp.status_code < 500
@@ -101,8 +94,7 @@ class VLLMOCRBackend(LocalBackend):
         mime = "application/pdf" if ext == "pdf" else f"image/{ext}"
         data_url = f"data:{mime};base64,{base64.b64encode(file_bytes).decode()}"
 
-        # Call the endpoint. Most vLLM servers don't require auth;
-        # only send the Bearer header if we have a key.
+        # Call the endpoint. Only send Bearer header if we have a key.
         url = f"{self.endpoint}/chat/completions"
         headers = {"Content-Type": "application/json"}
         if self.api_key:
@@ -152,44 +144,5 @@ class VLLMOCRBackend(LocalBackend):
         return blocks
 
 
-# Preset for Ollama (no key, localhost endpoint, model name differs)
-class OllamaOCRBackend(VLLMOCRBackend):
-    """Pre-configured for local Ollama serving DeepSeek-OCR.
-
-    Default: http://localhost:11434/v1, model `deepseek-ocr`.
-    No API key required.
-    """
-
-    name = "ollama"
-    display_name = "本地 Ollama (DeepSeek-OCR)"
-
-    def __init__(self, endpoint: str | None = None, model: str | None = None):
-        super().__init__(
-            api_key="",  # Ollama doesn't require auth
-            model=model or os.environ.get("OLLAMA_OCR_MODEL", "deepseek-ocr"),
-            endpoint=endpoint or os.environ.get(
-                "OLLAMA_OCR_ENDPOINT", "http://localhost:11434/v1"
-            ),
-        )
-
-    def is_available(self) -> bool:
-        # Ollama only needs the endpoint to respond
-        try:
-            resp = requests.get(
-                f"{self.endpoint}/models",
-                timeout=2,
-            )
-            return resp.status_code < 500
-        except Exception:
-            return False
-
-
-# Register on import. The `siliconflow` name is kept for backwards compat
-# — it points at the same VLLMOCRBackend class with default SiliconFlow
-# endpoint.
-_siliconflow_default = VLLMOCRBackend()
-_siliconflow_default.name = "siliconflow"
-_siliconflow_default.display_name = "SiliconFlow (DeepSeek-OCR)"
-register_backend(_siliconflow_default)
-register_backend(OllamaOCRBackend())
-register_backend(VLLMOCRBackend())  # `vllm` for any other endpoint
+# Register on import
+register_backend(VLLMOCRBackend())
