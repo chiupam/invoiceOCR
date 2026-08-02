@@ -41,31 +41,28 @@ Note: 智谱 GLM-OCR (dedicated OCR) is NOT hosted on SiliconFlow.
 ### Ollama (local)
 
 ```bash
-ollama pull frob/unlimited-ocr:q8_0   # recommended (3.1GB, works on CPU)
+ollama pull frob/unlimited-ocr:q8_0   # community GGUF (works on CPU)
 export VLLM_OCR_ENDPOINT=http://localhost:11434/v1
 export VLLM_OCR_MODEL=frob/unlimited-ocr:q8_0
 # no VLLM_OCR_API_KEY needed
 ```
 
-**Caveat (tested 2026-08-02):** local Ollama OCR on commodity CPU is
-unworkable for the 3B DeepSeek-OCR. We tested on a 6-core i7-13620H
-with 11GB RAM:
+**Caveat (tested 2026-08-02):** the Ollama `frob/unlimited-ocr` GGUF is a
+**community conversion**, not the official model. It works on CPU
+(~22s per invoice, core fields extracted) but is non-deterministic —
+the table block sometimes truncates, losing line items.
 
-- `deepseek-ocr:latest` (6.7GB GGUF) — Ollama couldn't load it; gave
-  up after 8m30s with HTTP 499 "load failed: timed out waiting for
-  llama-server to start". The 6.7GB GGUF needs ~8GB just to mmap,
-  leaving no room for KV cache on an 11GB host.
-- `glm-ocr:latest` (2.2GB, 0.9B) — fits in RAM but the model falls into a
-  repetition loop (10K+ chars of `./image.png` / ```skip``` garbage);
-  ~5 min per invoice.
-- **`frob/unlimited-ocr:q8_0` (3.1GB) — WORKS.** Fits in RAM, ~22s per
-  invoice on a 6-core CPU, extracts all fields correctly (tested on a
-  JD 数电发票). This is the recommended local Ollama model.
+The **official** Baidu Unlimited-OCR (https://recipes.vllm.ai/baidu/Unlimited-OCR)
+is a DeepSeek-OCR-lineage model that emits the same `<|ref|>/<|det|>`
+grounding tokens as DeepSeek-OCR — it requires a GPU (≥8GB VRAM) and
+the dedicated vLLM image (`vllm/vllm-openai:unlimited-ocr`) with a
+custom n-gram logits processor. Our format parser routes it correctly
+(`_parse_deepseek`); only the serving hardware is the constraint.
 
-A GPU box would also make GLM-OCR / DeepSeek-OCR work, but on
-CPU-only hardware use `frob/unlimited-ocr:q8_0` locally or the hosted
-SiliconFlow path (DeepSeek-OCR / Qwen3-VL), which is dramatically more
-reliable.
+Also tested, both failed on this 11GB CPU-only host:
+- `deepseek-ocr:latest` (6.7GB GGUF) — didn't fit, Ollama timed out
+  after 8m30s (HTTP 499).
+- `glm-ocr:latest` (2.2GB, 0.9B) — fit but repetition loop, ~5min/invoice.
 
 ### Local vLLM server — requires GPU
 

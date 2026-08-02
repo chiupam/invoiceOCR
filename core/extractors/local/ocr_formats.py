@@ -52,9 +52,15 @@ def _parse_deepseek(content: str) -> list[TextBlock]:
     return blocks
 
 
-# frob/unlimited-ocr (Ollama): "text [x0,y0,x1,y1]内容" or
+# frob/unlimited-ocr (Ollama community GGUF): "text [x0,y0,x1,y1]内容" or
 # "table [x0,y0,x1,y1]<html>..." — region label + bbox + content.
 # Line-oriented format: one region per line.
+#
+# NOTE: this is the output shape of the COMMUNITY GGUF conversion
+# (frob/unlimited-ocr on Ollama), NOT the official Baidu model. The
+# official baidu/Unlimited-OCR (recipes.vllm.ai) emits DeepSeek-style
+# <|ref|>/<|det|> grounding tokens and uses _parse_deepseek. This
+# parser is kept for anyone running the community GGUF.
 _RE_UNLIMITED = re.compile(
     r"^(text|table|header|footer|figure|formula|title|seal)\s*"
     r"\[\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]\s*(.*)$",
@@ -121,6 +127,9 @@ def get_format_parser(model: str) -> FormatParser:
 
 # --- Built-in registrations ----------------------------------------------
 
+# DeepSeek-OCR AND the official Baidu Unlimited-OCR (DeepSeek-OCR lineage)
+# both emit <|ref|>/<|det|> grounding tokens (see
+# https://recipes.vllm.ai/baidu/Unlimited-OCR). They share the parser.
 register_format("deepseek*", _parse_deepseek)
-register_format("*unlimited-ocr*", _parse_unlimited)
+register_format("*unlimited-ocr*", _parse_deepseek)
 # Plain-text fallback is the default for everything else (Qwen3-VL, GLM-4.5V, ...)
