@@ -127,19 +127,39 @@ class VLLMOCRBackend(LocalBackend):
         data = resp.json()
         content = data["choices"][0]["message"]["content"]
 
+        # Two output shapes:
+        # 1. Grounding boxes (DeepSeek-OCR): <|ref|>...<|/ref|><|det|>[[...]]<|/det|>
+        # 2. Plain labeled text (Qwen3-VL, GLM-4.5V, ...): one field per line
         blocks = []
-        for m in _RE_OCR_RE.finditer(content):
-            text = m.group(1).strip()
-            x0, y0, x1, y1 = map(int, m.groups()[1:5])
-            if not text:
-                continue
-            blocks.append(
-                TextBlock(
-                    text=text,
-                    bbox=(x0, y0, x1, y1),
-                    confidence=1.0,
+        ref_matches = list(_RE_OCR_RE.finditer(content))
+        if ref_matches:
+            for m in ref_matches:
+                text = m.group(1).strip()
+                x0, y0, x1, y1 = map(int, m.groups()[1:5])
+                if not text:
+                    continue
+                blocks.append(
+                    TextBlock(
+                        text=text,
+                        bbox=(x0, y0, x1, y1),
+                        confidence=1.0,
+                    )
                 )
-            )
+        else:
+            # Plain text fallback: one block per non-empty line.
+            # No real coordinates — use a synthetic Y so the parser's
+            # Y-clustering keeps reading order.
+            for i, line in enumerate(content.split("\n")):
+                line = line.strip()
+                if line:
+                    y = i * 20.0
+                    blocks.append(
+                        TextBlock(
+                            text=line,
+                            bbox=(0.0, y, 500.0, y + 20.0),
+                            confidence=1.0,
+                        )
+                    )
         logger.info(f"VLLMOCR: parsed {len(blocks)} text blocks")
         return blocks
 
