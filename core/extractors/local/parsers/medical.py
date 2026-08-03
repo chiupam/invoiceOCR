@@ -59,16 +59,53 @@ _RE_TOTAL_LINE_SPLIT = re.compile(
     rf"金额合计\s*{_P}大写{_PC}\s*([^\n]+?)\n\s*{_P}小写{_PC}\s*[¥￥]?\s*([\d,]+\.\d{{2}})"
 )
 
-_RE_HOSPITAL = re.compile(r"医疗机构类型[:：]\s*(\S+)")
-_RE_INSURANCE = re.compile(r"医保类型[:：]\s*(\S+)")
-_RE_INSURANCE_ID = re.compile(r"医保编号[:：]\s*(\S+)")
-_RE_GENDER = re.compile(r"性别[:：]\s*(\S+)")
-_RE_FUND_PAY = re.compile(r"医保统筹基金支付[:：]\s*(\S+)")
-_RE_OTHER_PAY = re.compile(r"其他支付[:：]\s*(\S+)")
-_RE_ACCOUNT_PAY = re.compile(r"个人账户支付[:：]\s*(\S+)")
-_RE_CASH_PAY = re.compile(r"个人现金支付[:：]\s*(\S+)")
-_RE_SELF_PAY = re.compile(r"个人自付[:：]\s*(\S+)")
-_RE_SELF_EXP = re.compile(r"个人自费[:：]\s*(\S+)")
+# Dense lines on medical receipts pack multiple labels together
+# ("医疗机构类型：综合医院医保类型：普通"). Each value must stop at the
+# NEXT label. Rather than per-field \S+ regexes, define a helper that
+# splits a text on a sequence of known labels.
+_MED_LABELS = [
+    "医疗机构类型", "医保类型", "医保编号", "性别", "医保统筹基金支付",
+    "其他支付", "个人账户支付", "个人现金支付", "个人自付", "个人自费",
+]
+
+
+def _med_field(text: str, label: str) -> str:
+    """Extract the value for `label` from a dense medical-info block.
+
+    The value runs from after `label:` until the next known label (or
+    end of line/block). This handles lines like
+    '医疗机构类型：综合医院医保类型：普通' correctly.
+    """
+    import re as _re
+    start = text.find(label)
+    if start < 0:
+        return ""
+    rest = text[start + len(label):]
+    rest = _re.sub(r"^\s*[:：]?\s*", "", rest)
+    # Find the earliest next label OR end of line
+    stops = [rest.find(nl) for nl in _MED_LABELS if nl != label and rest.find(nl) >= 0]
+    stops = [s for s in stops if s >= 0]
+    newline_pos = rest.find("\n")
+    if newline_pos >= 0:
+        stops.append(newline_pos)
+    if stops:
+        rest = rest[:min(stops)]
+    # Clean whitespace/newlines and stray box chars (他/信/息 are the
+    # vertical-text padding characters on some receipts)
+    rest = rest.replace("他", "").replace("信", "").replace("息", "").strip()
+    return rest
+
+
+_RE_HOSPITAL = re.compile(r"医疗机构类型[:：]\s*([^医\s][^保]*)")
+_RE_INSURANCE = re.compile(r"医保类型[:：]\s*([^医][^保][^编]*)")
+_RE_INSURANCE_ID = re.compile(r"医保编号[:：]\s*([^性别]*)")
+_RE_GENDER = re.compile(r"性别[:：]\s*([^医保]*)")
+_RE_FUND_PAY = re.compile(r"医保统筹基金支付[:：]\s*([^其]*)")
+_RE_OTHER_PAY = re.compile(r"其他支付[:：]\s*([^个]*)")
+_RE_ACCOUNT_PAY = re.compile(r"个人账户支付[:：]\s*([^个]*)")
+_RE_CASH_PAY = re.compile(r"个人现金支付[:：]\s*([^个]*)")
+_RE_SELF_PAY = re.compile(r"个人自付[:：]\s*([^个]*)")
+_RE_SELF_EXP = re.compile(r"个人自费[:：]\s*([^\n]*)")
 
 # Date: YYYY年MM月DD日 or YYYY-MM-DD
 _RE_DATE_CN = re.compile(r"(\d{4})年(\d{1,2})月(\d{1,2})日")
@@ -109,6 +146,14 @@ class MedicalParser(Parser):
             if m:
                 parsed.buyer_name = m.group(1).strip()
                 parsed.invoice_date_raw = m.group(2).strip()
+        # Seller = the hospital (收款单位（章）：北京大学第一医院)
+        if not parsed.seller_name:
+            m = re.search(
+                r"收款单位\s*[（(]章[）)]\s*[:：]?\s*([\u4e00-\u9fff·（）()]+)",
+                text,
+            )
+            if m:
+                parsed.seller_name = m.group(1).strip()
         if not parsed.invoice_date_raw:
             # Try standalone date
             m_date = re.search(
@@ -131,22 +176,22 @@ class MedicalParser(Parser):
 
         # Medical-specific fields
         med = parsed.medical_info
-        for label, regex, target in [
-            ("hospital_type", _RE_HOSPITAL, "医疗机构类型"),
-            ("insurance_type", _RE_INSURANCE, "医保类型"),
-            ("insurance_id", _RE_INSURANCE_ID, "医保编号"),
-            ("gender", _RE_GENDER, "性别"),
-            ("insurance_fund_pay", _RE_FUND_PAY, "医保统筹基金支付"),
-            ("other_pay", _RE_OTHER_PAY, "其他支付"),
-            ("account_pay", _RE_ACCOUNT_PAY, "个人账户支付"),
-            ("cash_pay", _RE_CASH_PAY, "个人现金支付"),
-            ("self_pay", _RE_SELF_PAY, "个人自付"),
-            ("self_expense", _RE_SELF_EXP, "个人自费"),
+        for label, target in [
+            ("医疗机构类型", "医疗机构类型"),
+            ("医保类型", "医保类型"),
+            ("医保编号", "医保编号"),
+            ("性别", "性别"),
+            ("医保统筹基金支付", "医保统筹基金支付"),
+            ("其他支付", "其他支付"),
+            ("个人账户支付", "个人账户支付"),
+            ("个人现金支付", "个人现金支付"),
+            ("个人自付", "个人自付"),
+            ("个人自费", "个人自费"),
         ]:
             if label not in med:
-                m = regex.search(text)
-                if m:
-                    med[target] = m.group(1).strip()
+                val = _med_field(text, label)
+                if val:
+                    med[target] = val
 
         # Items — best-effort extraction from blocks between header and 合计
         parsed.items = self._extract_items(blocks)
