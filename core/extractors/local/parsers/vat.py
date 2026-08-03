@@ -151,14 +151,19 @@ class VatParser(Parser):
         # Old-style layout: 名 and 称: are SEPARATE blocks (名 at x=38,
         # 称: at x=82). Detect adjacent 名 + 称: pairs and treat the
         # value as the block to the right of 称:.
+        # NOTE: only match when 称: has a COLON — the 数电发票 space-split
+        # layout also has 名+称 blocks but WITHOUT a colon (JD: 名 at x=41,
+        # 称 at x=55). Requiring the colon avoids false matches.
         if not name_blocks:
             for i, b in enumerate(blocks):
                 if b.text.strip() != "名":
                     continue
-                # Look for 称/称: nearby (same row)
+                # Look for 称:/称： nearby (same row)
                 for nb in blocks:
                     if nb is b or not nb.text.strip().startswith("称"):
                         continue
+                    if ":" not in nb.text and "：" not in nb.text:
+                        continue  # must have a colon (old-style)
                     if abs(nb.bbox[1] - b.bbox[1]) <= 5.0:
                         # Found the 称: label block; the name value is to
                         # its right on the same row
