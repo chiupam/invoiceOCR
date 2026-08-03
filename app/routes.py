@@ -827,15 +827,24 @@ def settings():
         # 保存设置
         tencent_secret_id = request.form.get('tencent_secret_id', '').strip()
         tencent_secret_key = request.form.get('tencent_secret_key', '').strip()
+        vllm_api_key = request.form.get('vllm_api_key', '').strip()
+        vllm_model = request.form.get('vllm_model', '').strip()
+        vllm_endpoint = request.form.get('vllm_endpoint', '').strip()
         
-        # 验证输入
+        # Tencent 是必填项（如果启用）；vllm 可选
         if not tencent_secret_id or not tencent_secret_key:
-            flash('请填写所有必填字段', 'danger')
+            flash('请填写腾讯云必填字段', 'danger')
             return redirect(url_for('main.settings'))
         
         # 保存设置
         Settings.set_value('TENCENT_SECRET_ID', tencent_secret_id)
         Settings.set_value('TENCENT_SECRET_KEY', tencent_secret_key)
+        if vllm_api_key:
+            Settings.set_value('VLLM_OCR_API_KEY', vllm_api_key)
+        if vllm_model:
+            Settings.set_value('VLLM_OCR_MODEL', vllm_model)
+        if vllm_endpoint:
+            Settings.set_value('VLLM_OCR_ENDPOINT', vllm_endpoint)
         
         flash('设置已保存', 'success')
         return redirect(url_for('main.index'))
@@ -844,9 +853,18 @@ def settings():
     tencent_secret_id = Settings.get_value('TENCENT_SECRET_ID', '')
     tencent_secret_key = Settings.get_value('TENCENT_SECRET_KEY', '')
     
+    # vllm 配置 — 显示当前生效值（env var 优先，其次是 Settings 表）
+    import os as _os
+    vllm_api_key = Settings.get_value('VLLM_OCR_API_KEY', '') or _os.environ.get('VLLM_OCR_API_KEY', '')
+    vllm_model = Settings.get_value('VLLM_OCR_MODEL', '') or _os.environ.get('VLLM_OCR_MODEL', 'deepseek-ai/DeepSeek-OCR')
+    vllm_endpoint = Settings.get_value('VLLM_OCR_ENDPOINT', '') or _os.environ.get('VLLM_OCR_ENDPOINT', 'https://api.siliconflow.cn/v1')
+    
     return render_template('settings.html', 
                            tencent_secret_id=tencent_secret_id,
-                           tencent_secret_key=tencent_secret_key)
+                           tencent_secret_key=tencent_secret_key,
+                           vllm_api_key=vllm_api_key,
+                           vllm_model=vllm_model,
+                           vllm_endpoint=vllm_endpoint)
 
 @main.route('/quick_upload', methods=['POST'])
 @login_required

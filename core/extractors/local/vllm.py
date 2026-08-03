@@ -50,13 +50,39 @@ class VLLMOCRBackend(LocalBackend):
         model: str | None = None,
         endpoint: str | None = None,
     ):
-        self.api_key = api_key or os.environ.get("VLLM_OCR_API_KEY", "")
-        self.model = model or os.environ.get(
-            "VLLM_OCR_MODEL", "deepseek-ai/DeepSeek-OCR"
+        # Precedence: constructor arg > env var > Settings table (web UI)
+        settings = self._load_settings()
+        self.api_key = (
+            api_key
+            or os.environ.get("VLLM_OCR_API_KEY")
+            or settings.get("VLLM_OCR_API_KEY", "")
         )
-        self.endpoint = endpoint or os.environ.get(
-            "VLLM_OCR_ENDPOINT", "https://api.siliconflow.cn/v1"
+        self.model = (
+            model
+            or os.environ.get("VLLM_OCR_MODEL")
+            or settings.get("VLLM_OCR_MODEL")
+            or "deepseek-ai/DeepSeek-OCR"
         )
+        self.endpoint = (
+            endpoint
+            or os.environ.get("VLLM_OCR_ENDPOINT")
+            or settings.get("VLLM_OCR_ENDPOINT")
+            or "https://api.siliconflow.cn/v1"
+        )
+
+    @staticmethod
+    def _load_settings() -> dict:
+        """Read VLLM_* values from the Settings table (web UI configured)."""
+        try:
+            from app.models import Settings
+            vals = {}
+            for k in ("VLLM_OCR_API_KEY", "VLLM_OCR_MODEL", "VLLM_OCR_ENDPOINT"):
+                v = Settings.get_value(k)
+                if v:
+                    vals[k] = v
+            return vals
+        except Exception:
+            return {}
 
     def is_available(self) -> bool:
         """True if the endpoint responds to GET /models.
