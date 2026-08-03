@@ -98,14 +98,22 @@ class PdfTextVerify(PostProcessor):
             # For medical receipts, buyer_name comes from 交款人 (payer);
             # for train tickets, from the passenger ID line. Applying the
             # VAT 名称： pattern there grabs the wrong text (item table
-            # header, company name, etc.). Only verify names for VAT.
-            if field in ("buyer_name", "seller_name") and not (
+            # header, company name, etc.).
+            #   - buyer_name: only verify for VAT (交款人 is the payer)
+            #   - seller_name: verify for VAT AND medical (medical seller
+            #     = 收款单位（章）: hospital; pdfplumber reads the text
+            #     layer even when the stamp covers it in the rendered
+            #     image, so it's MORE reliable than OCR here)
+            if field == "buyer_name" and not ("增值税" in parsed.invoice_type):
+                continue
+            if field == "seller_name" and not (
                 "增值税" in parsed.invoice_type
+                or "医疗" in parsed.invoice_type
             ):
                 continue
 
             # 1. Try label-anchored extraction from pdfplumber ground truth
-            ground_truth = self._extract_from_text(field, full_text)
+            ground_truth = self._extract_from_text(field, full_text, parsed.invoice_type)
 
             # 2. If label not found AND we have an OCR value, try fuzzy
             if ground_truth is None and ocr_value:
@@ -155,8 +163,24 @@ class PdfTextVerify(PostProcessor):
         return parsed
 
     @staticmethod
-    def _extract_from_text(field: str, full_text: str) -> str | None:
+    def _extract_from_text(field: str, full_text: str, invoice_type: str = "") -> str | None:
         """Extract the ground-truth value for `field` from pdfplumber text."""
+        if field == "seller_name" and "医疗" in invoice_type:
+            # Medical receipts: seller = hospital. The label
+            # (收款单位（章）：) may be unreadable in pdfplumber text when
+            # the PDF uses a custom-encoded font (cid glyphs). The
+            # hospital name itself (宣武医院) IS readable — find the CJK
+            # run ending in 医院, skipping the 医疗机构类型：综合医院
+            # line (综合医院 is a type, not a name).
+            for m in re.finditer(r"([\u4e00-\u9fff]{2,20}医院)", full_text):
+                candidate = m.group(1)
+                if candidate in ("综合医院", "中医医院", "专科医院"):
+                    continue
+                # Hospital names are typically 4+ chars (北京大学第一医院,
+                # 宣武医院, 北京协和医院). Prefer the longest match.
+                return candidate
+            return None
+
         pattern = _LABEL_PATTERNS.get(field)
         if pattern is None:
             return None
