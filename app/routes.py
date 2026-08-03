@@ -29,10 +29,18 @@ def allowed_file(filename):
 
 # 添加检查系统是否设置完成的函数
 def check_system_setup():
-    """检查系统是否已设置（腾讯云API密钥）"""
-    tencent_secret_id = Settings.get_value('TENCENT_SECRET_ID')
-    tencent_secret_key = Settings.get_value('TENCENT_SECRET_KEY')
-    return bool(tencent_secret_id and tencent_secret_key)
+    """检查系统是否已设置（腾讯云或 vllm OCR 后端可用）"""
+    import os as _os
+    # Tencent: env var 或 Settings 表
+    tencent_secret_id = Settings.get_value('TENCENT_SECRET_ID') or _os.environ.get('TENCENT_SECRET_ID')
+    tencent_secret_key = Settings.get_value('TENCENT_SECRET_KEY') or _os.environ.get('TENCENT_SECRET_KEY')
+    if tencent_secret_id and tencent_secret_key:
+        return True
+    # vllm: 任意后端可用即可（endpoint 有值且不是纯占位）
+    vllm_endpoint = Settings.get_value('VLLM_OCR_ENDPOINT') or _os.environ.get('VLLM_OCR_ENDPOINT')
+    if vllm_endpoint:
+        return True
+    return False
 
 @main.route('/')
 @main.route('/index')
@@ -849,9 +857,10 @@ def settings():
         flash('设置已保存', 'success')
         return redirect(url_for('main.index'))
     
-    # 获取当前设置
-    tencent_secret_id = Settings.get_value('TENCENT_SECRET_ID', '')
-    tencent_secret_key = Settings.get_value('TENCENT_SECRET_KEY', '')
+    # 获取当前设置 — 显示"生效值"（env var 优先，其次是 Settings 表）
+    import os as _os
+    tencent_secret_id = Settings.get_value('TENCENT_SECRET_ID', '') or _os.environ.get('TENCENT_SECRET_ID', '')
+    tencent_secret_key = Settings.get_value('TENCENT_SECRET_KEY', '') or _os.environ.get('TENCENT_SECRET_KEY', '')
     
     # vllm 配置 — 显示当前生效值（env var 优先，其次是 Settings 表）
     import os as _os
