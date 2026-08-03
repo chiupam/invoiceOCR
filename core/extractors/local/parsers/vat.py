@@ -235,12 +235,27 @@ class VatParser(Parser):
             # ¥23.87" or "合计¥ ¥" — match the markers directly.)
             if any(t in text for t in ("合计", "价税合计", "（大写", "（小写", "(大写", "(小写")):
                 continue
-            amounts = _RE_AMOUNT.findall(text)
-            if not amounts:
-                continue
-            amount = amounts[-1]
+            # Find the item AMOUNT using word X positions. A VAT item row
+            # is: 名称 单价 数量 金额 税率% 税额. The 金额 is the decimal
+            # word immediately LEFT of the 税率% word. Grabbing the last
+            # decimal would pick the 税额 (wrong) — e.g. "22.15 3% 0.66".
+            amount = None
+            for i, w in enumerate(ws):
+                if "%" in w.text:
+                    # Look left for the previous decimal word
+                    for j in range(i - 1, -1, -1):
+                        m = _RE_AMOUNT.search(ws[j].text)
+                        if m:
+                            amount = m.group(1)
+                            break
+                    break
+            if amount is None:
+                amounts = _RE_AMOUNT.findall(text)
+                if not amounts:
+                    continue
+                amount = amounts[-1]
             name = text
-            for a in amounts:
+            for a in _RE_AMOUNT.findall(text):
                 name = name.replace(a, " ", 1).strip()
             # Skip names that are only currency symbols / whitespace (e.g.
             # a leaked ￥ from the 价税合计（小写）row).
