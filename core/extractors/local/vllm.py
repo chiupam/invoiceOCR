@@ -42,7 +42,7 @@ class VLLMOCRBackend(LocalBackend):
     """OpenAI-compatible VLM OCR backend (SiliconFlow, Ollama, vLLM, ...)."""
 
     name = "vllm"
-    display_name = "VLM OCR (OpenAI-compatible 后端)"
+    display_name = "VLM OCR (AI 视觉识别)"
 
     def __init__(
         self,

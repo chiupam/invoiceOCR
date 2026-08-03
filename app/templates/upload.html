@@ -32,7 +32,7 @@
                                         <label for="doc_type">文档类型</label>
                                         <select class="form-control" id="doc_type" name="doc_type">
                                             {% for dt in doc_types %}
-                                            <option value="{{ dt.type_id }}" {% if loop.first %}selected{% endif %}>{{ dt.display_name }} ({{ dt.type_id }})</option>
+                                            <option value="{{ dt.type_id }}" {% if loop.first %}selected{% endif %}>{{ dt.display_name }}</option>
                                             {% endfor %}
                                         </select>
                                         <small class="form-text text-muted">决定调用哪个 OCR 接口。增值税发票最常见；选错可以稍后在编辑页修正。</small>
@@ -44,7 +44,7 @@
                                         <select class="form-control" id="backend" name="backend">
                                             {% for b in backends %}
                                             {% if b.name != 'local-pdf' %}
-                                            <option value="{{ b.name }}" {% if loop.first %}selected{% endif %}>{{ b.display_name }} ({{ b.name }})</option>
+                                            <option value="{{ b.name }}" {% if loop.first %}selected{% endif %}>{{ b.display_name }}</option>
                                             {% endif %}
                                             {% endfor %}
                                         </select>

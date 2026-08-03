@@ -54,7 +54,7 @@ _TRAIN_NOISE_FIELDS = frozenset({"RequestId"})
 
 class TrainTicket(DocType):
     type_id = "train"
-    display_name = "火车票"
+    display_name = "铁路电子客票"
     ocr_action = "TrainTicketOCR"
 
     # --- Detection -----------------------------------------------------------
