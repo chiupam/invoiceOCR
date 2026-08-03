@@ -151,15 +151,21 @@ class TrainParser(Parser):
                                 break
                 if name_match:
                     parsed.buyer_name = name_match.group(1)
+                    parsed.travel_info["乘车人"] = name_match.group(1)
                 break
 
-        # 购买方 (company) + 信用代码
+        # 购买方 (company 抬头) + 信用代码 — the entity the ticket is
+        # issued to (e.g. 中国联合网络通信有限公司北京市分公司). The
+        # PASSENGER (刘佳亮) is the traveler, not the buyer.
         m = _RE_BUYER.search(text)
         if m:
-            parsed.seller_name = m.group(1)
-        m = _RE_TAX_ID.search(norm_text)
+            parsed.buyer_name = m.group(1)
+        m = _RE_TAX_ID.search(text)
         if m:
-            parsed.seller_tax_id = m.group(1)
+            parsed.buyer_tax_id = m.group(1)
+
+        # Seller = railway operator. Not explicitly printed on the
+        # e-ticket; leave empty (the 12306/铁路 operator is implied).
 
         return parsed
 
