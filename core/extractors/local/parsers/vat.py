@@ -26,13 +26,16 @@ logger = logging.getLogger(__name__)
 
 # Patterns
 _RE_TITLE = re.compile(r"电子发票[（(]普通发票[）)]")
-_RE_INVOICE_NUMBER = re.compile(r"发票号码[:：]\s*(\d+)")
-_RE_INVOICE_DATE = re.compile(r"开票日期[:：]\s*(\d{4}[年-]\d{1,2}[月-]\d{1,2}日?)")
+_RE_INVOICE_NUMBER = re.compile(r"发票号码[:：]?\s*(\d+)")
+_RE_INVOICE_CODE = re.compile(r"发票代码[:：]?\s*(\d+)")
+_RE_INVOICE_DATE = re.compile(r"开票日期[:：]?\s*(\d{4})[年\s-]?(\d{1,2})[月\s-]?(\d{1,2})日?")
+_RE_CHECK_CODE = re.compile(r"校验码[:：]?\s*([\d\s]+)")
+_RE_MACHINE_NUMBER = re.compile(r"机器编号[:：]?\s*(\d+)")
 
 # Names: many VAT receipts have "名称:xxx" on left and right halves.
 # We use X-coordinate to split left (buyer) vs right (seller).
 # Patterns below capture either "名称: XXX" or "XXX统一社会信用代码" lines.
-_RE_TAX_ID = re.compile(r"统一社会信用代码/纳税人识别号[:：]\s*(\S+)")
+_RE_TAX_ID = re.compile(r"(?:统一社会信用代码/纳税人识别号|纳税人识别号)[:：]?\s*([0-9A-Z\*]{10,20})")
 _RE_ISSUER = re.compile(r"开票人[:：]\s*(\S+)")
 
 _RE_TOTAL = re.compile(
@@ -69,11 +72,31 @@ class VatParser(Parser):
             if m:
                 parsed.invoice_number = m.group(1)
 
+        # Invoice code (traditional 普票 has 发票代码; 数电发票 doesn't)
+        if not parsed.invoice_code:
+            m = _RE_INVOICE_CODE.search(text)
+            if m:
+                parsed.invoice_code = m.group(1)
+
+        # Check code + machine number (traditional layout)
+        if not parsed.check_code:
+            m = _RE_CHECK_CODE.search(text)
+            if m:
+                # Old-style check codes have spaces: "58136 09516 34677 86085"
+                parsed.check_code = m.group(1).replace(" ", "").strip()
+        if not parsed.machine_number:
+            m = _RE_MACHINE_NUMBER.search(text)
+            if m:
+                parsed.machine_number = m.group(1)
+
         # Date
         if not parsed.invoice_date_raw:
             m = _RE_INVOICE_DATE.search(text)
             if m:
-                parsed.invoice_date_raw = m.group(1).strip()
+                # Handle "2023 年 11 月15日" (old layout spaces)
+                parsed.invoice_date_raw = (
+                    f"{m.group(1)}年{int(m.group(2))}月{int(m.group(3))}日"
+                )
         parsed.invoice_date = self._normalize_date(parsed.invoice_date_raw)
 
         # Parties (buyer on left, seller on right at top of invoice)
@@ -124,6 +147,31 @@ class VatParser(Parser):
                 if "：" in t or ":" in t:
                     value = t.split("：", 1)[-1].split(":", 1)[-1].strip()
                 name_blocks.append((b, value))
+
+        # Old-style layout: 名 and 称: are SEPARATE blocks (名 at x=38,
+        # 称: at x=82). Detect adjacent 名 + 称: pairs and treat the
+        # value as the block to the right of 称:.
+        if not name_blocks:
+            for i, b in enumerate(blocks):
+                if b.text.strip() != "名":
+                    continue
+                # Look for 称/称: nearby (same row)
+                for nb in blocks:
+                    if nb is b or not nb.text.strip().startswith("称"):
+                        continue
+                    if abs(nb.bbox[1] - b.bbox[1]) <= 5.0:
+                        # Found the 称: label block; the name value is to
+                        # its right on the same row
+                        val = ""
+                        if ":" in nb.text or "：" in nb.text:
+                            val = nb.text.split(":", 1)[-1].split("：", 1)[-1].strip()
+                        name_blocks.append((nb, val))
+                        break
+        # Sort name_blocks by Y so buyer (top) comes before seller (bottom)
+        if name_blocks and not any(v for _, v in name_blocks):
+            # All values empty → old-style: buyer block is the top one,
+            # seller is the bottom one (NOT left/right!)
+            name_blocks.sort(key=lambda x: x[0].bbox[1])
 
         if name_blocks:
             # Sort by X — left is buyer, right is seller
@@ -182,6 +230,8 @@ class VatParser(Parser):
         # within the same text block (e.g. "统一社会信用代码/纳税人识别号
         # :91110302MA01LR25XA"); the left may be empty (个人 has no code)
         # or have a separate value block.
+        # Old-style (2023) invoices use plain "纳税人识别号:" labels in
+        # top (buyer) and bottom (seller) blocks.
         #
         # Robust strategy: collect all (x, value) pairs where the block
         # has BOTH the label AND a value, plus any (x, value) pair on the
@@ -191,7 +241,7 @@ class VatParser(Parser):
         # seller's (the side that has a value), so default to seller.
         tax_pairs: list[tuple[float, str]] = []
         for b in blocks:
-            if "统一社会信用代码" not in b.text:
+            if "统一社会信用代码" not in b.text and "纳税人识别号" not in b.text:
                 continue
             # 1. Value within the same block
             m = _RE_TAX_ID.search(b.text)
