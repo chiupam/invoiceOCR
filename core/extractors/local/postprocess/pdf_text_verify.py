@@ -169,15 +169,26 @@ class PdfTextVerify(PostProcessor):
             # Medical receipts: seller = hospital. The label
             # (收款单位（章）：) may be unreadable in pdfplumber text when
             # the PDF uses a custom-encoded font (cid glyphs). The
-            # hospital name itself (宣武医院) IS readable — find the CJK
-            # run ending in 医院, skipping the 医疗机构类型：综合医院
-            # line (综合医院 is a type, not a name).
-            for m in re.finditer(r"([\u4e00-\u9fff]{2,20}医院)", full_text):
+            # hospital name itself IS readable — but it does NOT always
+            # end in 医院 (北京市丰台区妇幼保健计划生育服务中心（北京市
+            # 丰台区妇幼保健院）). Two strategies:
+            #   1. Find the label if readable (收款单位（章）：<name>)
+            #   2. Otherwise take the longest CJK run ending in 医院/保健院
+            m = re.search(
+                r"收\s*款\s*单\s*位\s*[（(]章[）)]\s*[:：]?\s*"
+                r"([\u4e00-\u9fff·（）()（）]{4,})",
+                full_text,
+            )
+            if m:
+                return m.group(1).strip()
+            # Fallback: CJK run ending in a hospital-ish suffix
+            for m in re.finditer(
+                r"([\u4e00-\u9fff]{2,20}(?:医院|保健院|卫生院|服务中心))",
+                full_text,
+            ):
                 candidate = m.group(1)
                 if candidate in ("综合医院", "中医医院", "专科医院"):
                     continue
-                # Hospital names are typically 4+ chars (北京大学第一医院,
-                # 宣武医院, 北京协和医院). Prefer the longest match.
                 return candidate
             return None
 
@@ -255,8 +266,17 @@ class PdfTextVerify(PostProcessor):
 
 
 def _normalize_amount(amount_str: str) -> str:
-    """Normalize to ¥X.XX format (strip commas, remove existing ¥/￥)."""
-    cleaned = amount_str.replace("¥", "").replace("￥", "").replace(",", "").strip()
+    """Normalize to ¥X.XX format.
+
+    Strips currency symbols, commas, and any surrounding punctuation
+    that a fuzzy match may have dragged in (e.g. '）94.40' from
+    '（小写）94.40' when the label is unreadable).
+    """
+    cleaned = amount_str.replace("¥", "").replace("￥", "").replace(",", "")
+    # Keep only digits, dot, and minus (in case of negative amounts)
+    m = re.search(r"-?\d+(?:\.\d+)?", cleaned)
+    if m:
+        cleaned = m.group(0)
     return f"¥{cleaned}"
 
 
