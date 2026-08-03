@@ -44,7 +44,7 @@ _RE_DATE_CN = re.compile(r"(\d{4})年(\d{1,2})月(\d{1,2})日")
 _RE_DATE_ISO = re.compile(r"(\d{4})-(\d{1,2})-(\d{1,2})")
 
 # Monetary
-_RE_AMOUNT = re.compile(r"([\d,]+\.\d{2})")
+_RE_AMOUNT = re.compile(r"(-?[\d,]+\.\d{2})")
 
 
 class VatParser(Parser):
@@ -120,12 +120,10 @@ class VatParser(Parser):
             # Match '名称：XXX' or exactly '名称'
             if t.startswith("名称") and "信息" not in t:
                 # Extract value after 名称：
+                value = ""
                 if "：" in t or ":" in t:
                     value = t.split("：", 1)[-1].split(":", 1)[-1].strip()
-                    if value:
-                        name_blocks.append((b, value))
-                else:
-                    name_blocks.append((b, ""))
+                name_blocks.append((b, value))
 
         if name_blocks:
             # Sort by X — left is buyer, right is seller
@@ -134,17 +132,49 @@ class VatParser(Parser):
                 parsed.buyer_name = name_blocks[0][1]
             if len(name_blocks) >= 2 and name_blocks[1][1]:
                 parsed.seller_name = name_blocks[1][1]
-            # If value was empty (label only), find the next block
+            # If value was empty (label only), find the name value in a
+            # nearby block — the value may be ABOVE or BELOW the label
+            # (this layout puts the name at y=100.6 and 名称： at y=102.7),
+            # or on the same row to the right.
             for b, value in name_blocks:
                 if not value:
-                    idx = blocks.index(b)
-                    for nb in blocks[idx + 1:]:
-                        if nb.text.strip() and not nb.text.strip().startswith("统一"):
-                            if parsed.buyer_name is None or parsed.buyer_name == "":
-                                parsed.buyer_name = nb.text.strip()
-                            elif parsed.seller_name is None or parsed.seller_name == "":
-                                parsed.seller_name = nb.text.strip()
-                            break
+                    best = None
+                    best_dist = 999
+                    for nb in blocks:
+                        if nb is b or not nb.text.strip():
+                            continue
+                        if nb.text.strip().startswith("统一"):
+                            continue
+                        if nb.text.strip().startswith("名称"):
+                            continue  # skip other labels
+                        if "方" in nb.text and len(nb.text) <= 2:
+                            continue  # skip 买/售/方/信/息 vertical text
+                        # Value is to the RIGHT of the label, same/adjacent row
+                        dy = abs(nb.bbox[1] - b.bbox[1])
+                        if dy <= 8.0 and nb.bbox[0] > b.bbox[0]:
+                            if dy < best_dist:
+                                best = nb
+                                best_dist = dy
+                    if best is None:
+                        # Fallback: any nearby block within 10pt Y (to the right)
+                        for nb in blocks:
+                            if nb is b or not nb.text.strip():
+                                continue
+                            if nb.text.strip().startswith("统一"):
+                                continue
+                            if nb.text.strip().startswith("名称"):
+                                continue
+                            if "方" in nb.text and len(nb.text) <= 2:
+                                continue
+                            if nb.bbox[0] > b.bbox[0] and abs(nb.bbox[1] - b.bbox[1]) <= 10.0:
+                                best = nb
+                                break
+                    if best:
+                        val = best.text.strip()
+                        if parsed.buyer_name is None or parsed.buyer_name == "":
+                            parsed.buyer_name = val
+                        elif parsed.seller_name is None or parsed.seller_name == "":
+                            parsed.seller_name = val
 
         # Tax IDs from 统一社会信用代码/纳税人识别号 labels.
         # Modern 数电发票 has TWO label blocks side-by-side: left (buyer)
