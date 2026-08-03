@@ -146,7 +146,16 @@ class MedicalParser(Parser):
             if m:
                 parsed.buyer_name = m.group(1).strip()
                 parsed.invoice_date_raw = m.group(2).strip()
-        # Seller = the hospital (收款单位（章）：北京大学第一医院)
+        # Standalone buyer_name fallback (Qwen/clean OCR output puts
+        # 交款人 and 开票日期 on separate lines).
+        if not parsed.buyer_name:
+            m = re.search(r"交款人[:：]\s*(\S+)", text)
+            if m:
+                parsed.buyer_name = m.group(1).strip()
+        # Seller = the hospital. Two label variants:
+        #   收款单位（章）：北京大学第一医院   (pdfplumber dense)
+        #   ...宣武医院                       (Qwen/clean OCR, bare name
+        #   near the 医保交易流水号 footer)
         if not parsed.seller_name:
             m = re.search(
                 r"收款单位\s*[（(]章[）)]\s*[:：]?\s*([\u4e00-\u9fff·（）()]+)",
