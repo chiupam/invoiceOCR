@@ -42,6 +42,16 @@ def check_system_setup():
         return True
     return False
 
+@main.route('/health')
+def health():
+    """Liveness/readiness probe endpoint.
+
+    Unauthenticated and lightweight — returns 200 OK once the Flask
+    process is serving requests. Suitable for Kubernetes livenessProbe,
+    readinessProbe, and external uptime checks.
+    """
+    return {'status': 'ok'}
+
 @main.route('/')
 @main.route('/index')
 @login_required
@@ -286,7 +296,7 @@ def upload():
             filename = secure_filename(file.filename)
             
             # 创建文件保存目录
-            upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+            upload_folder = current_app.config['UPLOAD_FOLDER']
             if not os.path.exists(upload_folder):
                 os.makedirs(upload_folder)
             
