@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -17,4 +17,4 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 5001
 
 # 启动应用
-CMD ["python3", "run.py"] 
+CMD ["python3", "run.py"]
