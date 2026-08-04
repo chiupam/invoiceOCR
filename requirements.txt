@@ -23,6 +23,7 @@ opencv-python>=4.5.3
 
 # PDF处理
 PyPDF2>=1.26.0
+pdfplumber>=0.10.0          # 多后端提取器: 文本+坐标提取
 
 # OCR服务
 tencentcloud-sdk-python
