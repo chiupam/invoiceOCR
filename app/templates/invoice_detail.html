@@ -83,10 +83,12 @@
                                             <th style="width: 30%">发票类型</th>
                                             <td>{{ invoice.invoice_type or '未知类型' }}</td>
                                         </tr>
+                                        {% if invoice.doc_type != 'train' %}
                                         <tr>
                                             <th>发票代码</th>
                                             <td>{{ invoice.invoice_code }}</td>
                                         </tr>
+                                        {% endif %}
                                         <tr>
                                             <th>发票号码</th>
                                             <td>{{ invoice.invoice_number }}</td>
@@ -109,14 +111,31 @@
                                             <th>合计金额</th>
                                             <td>{{ invoice.total_amount }}</td>
                                         </tr>
+                                        {% if invoice.doc_type not in ('train', 'medical') %}
                                         <tr>
                                             <th>税额</th>
                                             <td>{{ invoice.total_tax }}</td>
                                         </tr>
+                                        {% endif %}
                                         <tr>
                                             <th>价税合计</th>
                                             <td>{{ invoice.amount_in_figures }}</td>
                                         </tr>
+                                        {% if invoice.doc_type == 'train' %}
+                                        <tr>
+                                            <th>乘车人</th>
+                                            <td>{{ invoice.buyer_name }}</td>
+                                        </tr>
+                                        {% elif invoice.doc_type == 'medical' %}
+                                        <tr>
+                                            <th>收款单位</th>
+                                            <td>{{ invoice.seller_name }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>交款人</th>
+                                            <td>{{ invoice.buyer_name }}</td>
+                                        </tr>
+                                        {% else %}
                                         <tr>
                                             <th>销售方</th>
                                             <td>{{ invoice.seller_name }}</td>
@@ -133,6 +152,7 @@
                                             <th>购买方税号</th>
                                             <td>{{ invoice.buyer_tax_id }}</td>
                                         </tr>
+                                        {% endif %}
                                         <tr>
                                             <th>创建时间</th>
                                             <td>{{ invoice.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
@@ -149,6 +169,31 @@
 
                     <div class="row mt-4">
                         <div class="col-md-12">
+                            {% if extra_sections %}
+                            {% for section_name, section_data in extra_sections.items() %}
+                            {% if section_data %}
+                            <h4>{{ section_name }}</h4>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-striped">
+                                    <tbody>
+                                        {% for field_name, field_value in section_data.items() %}
+                                        <tr>
+                                            <th style="width: 30%">{{ field_name }}</th>
+                                            <td>{{ field_value if field_value is not none else '' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            {% if invoice.doc_type != 'train' %}
                             <h4>发票明细项</h4>
                             <div class="table-responsive">
                                 <table class="table table-hover">
@@ -161,8 +206,10 @@
                                             <th>数量</th>
                                             <th>单价</th>
                                             <th>金额</th>
+                                            {% if invoice.doc_type != 'medical' %}
                                             <th>税率</th>
                                             <th>税额</th>
+                                            {% endif %}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -175,13 +222,16 @@
                                             <td>{{ item.quantity or '-' }}</td>
                                             <td>{{ item.price or '-' }}</td>
                                             <td>{{ item.amount }}</td>
+                                            {% if invoice.doc_type != 'medical' %}
                                             <td>{{ item.tax_rate }}</td>
                                             <td>{{ item.tax }}</td>
+                                            {% endif %}
                                         </tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

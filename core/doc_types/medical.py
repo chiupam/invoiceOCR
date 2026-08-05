@@ -48,31 +48,18 @@ logger = logging.getLogger(__name__)
 
 # Fields emitted by Tencent's medical API that we surface in a dedicated
 # 医保信息 block. Anything else still flows into 其他信息 as a fallback.
-MEDICAL_INFO_FIELDS = (
-    "发票名称",
-    "发票类型",
-    "发票属地",
-    "医疗机构类型",
-    "医保类型",
-    "医保统筹基金支付",
-    "个人账户支付",
-    "其他支付",
-    "个人现金支付",
-    "个人自付",
-    "个人自费",
-    "性别",
-    "就诊日期",
-    "收款单位",
-    "收款人",
-    "交款人",
-    "交款人统一社会信用代码",
-)
+# Canonical field order lives in core/doc_types/sections.py (single source
+# of truth shared with the local parsers).
+from .sections import MEDICAL_SECTION_FIELDS as MEDICAL_INFO_FIELDS
 
 
 class MedicalInvoice(DocType):
     type_id = "medical"
     display_name = "医疗票据"
     ocr_action = "RecognizeMedicalInvoiceOCR"
+
+    # extra_data contract: the 医保信息 section is medical-only.
+    extra_section_keys = ("医保信息",)
 
     # --- Detection -----------------------------------------------------------
 

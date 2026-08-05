@@ -32,10 +32,23 @@
                                         <label for="doc_type">文档类型</label>
                                         <select class="form-control" id="doc_type" name="doc_type">
                                             {% for dt in doc_types %}
-                                            <option value="{{ dt.type_id }}" {% if loop.first %}selected{% endif %}>{{ dt.display_name }} ({{ dt.type_id }})</option>
+                                            <option value="{{ dt.type_id }}" {% if loop.first %}selected{% endif %}>{{ dt.display_name }}</option>
                                             {% endfor %}
                                         </select>
                                         <small class="form-text text-muted">决定调用哪个 OCR 接口。增值税发票最常见；选错可以稍后在编辑页修正。</small>
+                                    </div>
+
+                                    <!-- 选择 OCR 后端 -->
+                                    <div class="form-group">
+                                        <label for="backend">识别后端</label>
+                                        <select class="form-control" id="backend" name="backend">
+                                            {% for b in backends %}
+                                            {% if b.name != 'local-pdf' %}
+                                            <option value="{{ b.name }}" {% if loop.first %}selected{% endif %}>{{ b.display_name }}</option>
+                                            {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                        <small class="form-text text-muted">电子PDF会自动先用本地pdfplumber无损提取（免费、无需密钥），失败才回退到所选OCR后端。tencent=腾讯云OCR（需密钥）；vllm=通用VLM OCR（默认SiliconFlow DeepSeek-OCR，可用VLLM_OCR_ENDPOINT指向Ollama/本地vLLM）。</small>
                                     </div>
                                     
                                     <div class="mb-4 text-center">

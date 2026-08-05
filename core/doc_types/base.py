@@ -132,6 +132,36 @@ class DocType(ABC):
         """
         return {"IsPdf": True, "PdfPageNumber": 1}
 
+    # --- Type-specific sections (extra_data contract) -----------------------
+
+    #: Schema version of the ``extra_data`` JSON blob produced by this type.
+    #: Bump when the shape of ``extra_sections()`` output changes.
+    extra_schema_version: int = 1
+
+    #: Keys of the ``formatted_data`` dict that should be persisted to the
+    #: ``Invoice.extra_data`` column. Subclasses override with the sections
+    #: they own (e.g. ``("医保信息",)``, ``("乘车信息",)``). Everything
+    #: rendered by the fixed columns (基本信息/金额信息/销售方信息/购买方信息/
+    #: 商品信息) is intentionally excluded — it already lives in columns.
+    extra_section_keys: tuple[str, ...] = ()
+
+    def extra_sections(self, formatted_data: dict) -> dict:
+        """Extract the type-specific sections from a formatted_data dict.
+
+        Default implementation picks the keys declared in
+        ``extra_section_keys`` (only if non-empty). Subclasses may override
+        for custom shapes. The result is what gets persisted to
+        ``Invoice.extra_data`` — wrapped by the caller with a schema
+        version.
+        """
+        if not self.extra_section_keys:
+            return {}
+        return {
+            k: formatted_data.get(k)
+            for k in self.extra_section_keys
+            if formatted_data.get(k)
+        }
+
     # --- Helpers (used by formatters) ----------------------------------------
 
     @staticmethod

@@ -41,6 +41,34 @@
             </div>
 
             <div class="mb-4">
+              <h6 class="text-muted">VLM OCR 后端配置 (vllm)</h6>
+              <hr>
+              <div class="mb-3">
+                <label for="vllm_endpoint" class="form-label">Endpoint (API 地址)</label>
+                <input type="text" class="form-control" id="vllm_endpoint" name="vllm_endpoint"
+                      value="{{ vllm_endpoint }}" autocomplete="off" placeholder="https://api.siliconflow.cn/v1">
+                <div class="form-text">OpenAI 兼容接口地址。默认 SiliconFlow；本地 Ollama 填 <code>http://localhost:11434/v1</code>；本地 vLLM 填 <code>http://localhost:8000/v1</code></div>
+              </div>
+              <div class="mb-3">
+                <label for="vllm_model" class="form-label">模型名称</label>
+                <input type="text" class="form-control" id="vllm_model" name="vllm_model"
+                      value="{{ vllm_model }}" autocomplete="off" placeholder="deepseek-ai/DeepSeek-OCR">
+                <div class="form-text">默认 <code>deepseek-ai/DeepSeek-OCR</code>。其他可选：<code>Qwen/Qwen3-VL-8B-Instruct</code>、<code>frob/unlimited-ocr:q8_0</code>（Ollama 本地）</div>
+              </div>
+              <div class="mb-3">
+                <label for="vllm_api_key" class="form-label">API Key <span class="text-muted">(可选)</span></label>
+                <div class="input-group">
+                  <input type="password" class="form-control" id="vllm_api_key" name="vllm_api_key"
+                        value="{{ vllm_api_key }}" autocomplete="off">
+                  <button class="btn btn-outline-secondary" type="button" onclick="toggleVisibility('vllm_api_key', this)">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+                <div class="form-text">SiliconFlow 需要 API Key；本地 Ollama/vLLM 不需要。留空则使用环境变量配置</div>
+              </div>
+            </div>
+
+            <div class="mb-4">
               <h6 class="text-muted">安全信息</h6>
               <hr>
               <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">

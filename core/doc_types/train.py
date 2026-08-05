@@ -54,8 +54,11 @@ _TRAIN_NOISE_FIELDS = frozenset({"RequestId"})
 
 class TrainTicket(DocType):
     type_id = "train"
-    display_name = "火车票"
+    display_name = "铁路电子客票"
     ocr_action = "TrainTicketOCR"
+
+    # extra_data contract: the 乘车信息 section is train-only.
+    extra_section_keys = ("乘车信息",)
 
     # --- Detection -----------------------------------------------------------
 
@@ -113,15 +116,22 @@ class TrainTicket(DocType):
             "原票价": self.format_amount(fields.get("OriginalPrice", "")),
         }
 
-        # 乘车信息 — train-specific block: from/to, train number, seat, date
-        travel_info = {
+        # 乘车信息 — train-specific block: from/to, train number, seat, date.
+        # Canonical field order + names from core/doc_types/sections.py
+        # (shared with the local parser so both backends emit the same
+        # 乘车信息 shape).
+        from .sections import TRAIN_SECTION_FIELDS
+        _travel_raw = {
+            "车次": fields.get("TrainNum", ""),
             "出发站": fields.get("StartStation", ""),
             "到达站": fields.get("DestinationStation", ""),
-            "车次": fields.get("TrainNum", ""),
             "出发时间": fields.get("Date", ""),
             "座位号": fields.get("Seat", ""),
             "席别": fields.get("SeatCategory", ""),
             "售票站": fields.get("TicketStation", ""),
+        }
+        travel_info = {
+            k: _travel_raw[k] for k in TRAIN_SECTION_FIELDS if _travel_raw.get(k)
         }
 
         # 乘车人信息 — passenger name + ID, mapped to 购买方 fields so the

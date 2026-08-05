@@ -14,6 +14,13 @@ import re
 from .models import db, Invoice, InvoiceItem, Project, Settings
 from .utils import save_uploaded_file, process_invoice_image, get_invoice_statistics, export_invoice, delete_invoice, export_project
 from core.doc_types import get as _get_doc_type, all_types as _all_doc_types
+from core.extractors import all_backends as _all_backends
+
+# Rate limiter shared with app/__init__.py. Imported here so the /health
+# endpoint can be exempted from the global limits — kubelet probes hit
+# /health every few seconds from the same source IP and would otherwise
+# exhaust the per-hour bucket, causing 429s that fail the liveness probe.
+from app import limiter
 
 # 创建蓝图
 main = Blueprint('main', __name__)
@@ -28,10 +35,34 @@ def allowed_file(filename):
 
 # 添加检查系统是否设置完成的函数
 def check_system_setup():
-    """检查系统是否已设置（腾讯云API密钥）"""
-    tencent_secret_id = Settings.get_value('TENCENT_SECRET_ID')
-    tencent_secret_key = Settings.get_value('TENCENT_SECRET_KEY')
-    return bool(tencent_secret_id and tencent_secret_key)
+    """检查系统是否已设置（腾讯云或 vllm OCR 后端可用）"""
+    import os as _os
+    # Tencent: env var 或 Settings 表
+    tencent_secret_id = Settings.get_value('TENCENT_SECRET_ID') or _os.environ.get('TENCENT_SECRET_ID')
+    tencent_secret_key = Settings.get_value('TENCENT_SECRET_KEY') or _os.environ.get('TENCENT_SECRET_KEY')
+    if tencent_secret_id and tencent_secret_key:
+        return True
+    # vllm: 任意后端可用即可（endpoint 有值且不是纯占位）
+    vllm_endpoint = Settings.get_value('VLLM_OCR_ENDPOINT') or _os.environ.get('VLLM_OCR_ENDPOINT')
+    if vllm_endpoint:
+        return True
+    return False
+
+@main.route('/health')
+@limiter.exempt
+def health():
+    """Liveness/readiness probe endpoint.
+
+    Unauthenticated, lightweight, and exempt from Flask-Limiter's global
+    default limits. Probes (kubelet liveness/readiness, external uptime
+    monitors) hit this endpoint on a fixed cadence from a single source
+    IP, which would otherwise exhaust the per-hour bucket and cause the
+    liveness probe to fail with 429 — restarting the pod in a loop.
+
+    Returns ``{"status": "ok"}`` 200 once the Flask process is serving
+    requests.
+    """
+    return {'status': 'ok'}
 
 @main.route('/')
 @main.route('/index')
@@ -56,6 +87,11 @@ def index():
     
     # 获取搜索查询参数
     search_query = request.args.get('search', '')
+
+    # 获取文档类型过滤参数
+    doc_type_filter = request.args.get('doc_type', '')
+    if doc_type_filter and _get_doc_type(doc_type_filter) is None:
+        doc_type_filter = ''  # unknown type -> no filter
     
     # 初始化查询对象
     query = Invoice.query
@@ -79,6 +115,10 @@ def index():
     # 应用搜索过滤
     if search_query:
         query = query.filter(Invoice.invoice_number.like(f'%{search_query}%'))
+    
+    # 应用文档类型过滤
+    if doc_type_filter:
+        query = query.filter(Invoice.doc_type == doc_type_filter)
     
     # 应用排序
     if sort_by == 'invoice_date':
@@ -223,7 +263,9 @@ def index():
                           current_project=current_project,
                           sort_by=sort_by,
                           order=order,
-                          search_query=search_query)
+                          search_query=search_query,
+                          doc_type_filter=doc_type_filter,
+                          doc_types=_all_doc_types())
 
 
 @main.route('/upload', methods=['GET', 'POST'])
@@ -277,7 +319,7 @@ def upload():
             filename = secure_filename(file.filename)
             
             # 创建文件保存目录
-            upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+            upload_folder = current_app.config['UPLOAD_FOLDER']
             if not os.path.exists(upload_folder):
                 os.makedirs(upload_folder)
             
@@ -297,9 +339,18 @@ def upload():
                 current_app.logger.warning(f"未知的 doc_type={doc_type!r}, 回退到 'vat'")
                 doc_type = 'vat'
 
+            # 获取 OCR 后端（'tencent' / 'vllm' / 'local'）。
+            # 默认为 'tencent' 保持向后兼容。
+            backend = (request.form.get('backend', '') or 'tencent').strip().lower()
+            from core.extractors import get_backend as _get_backend
+            if _get_backend(backend) is None:
+                current_app.logger.warning(f"未知的 backend={backend!r}, 回退到 'tencent'")
+                backend = 'tencent'
+
             # 处理发票文件
             result = process_invoice_image(
                 temp_file_path, project_id=project_id, doc_type=doc_type,
+                backend=backend,
             )
             
             if not result.get('success'):
@@ -351,7 +402,8 @@ def upload():
                           projects=projects,
                           default_project_id=default_project_id,
                           current_project_id=default_project_id,
-                          doc_types=_all_doc_types())
+                          doc_types=_all_doc_types(),
+                          backends=_all_backends())
 
 
 @main.route('/invoice/<int:invoice_id>')
@@ -378,12 +430,24 @@ def invoice_detail(invoice_id):
     if 'index' in referer and ('page=' in referer or 'project_id=' in referer or 'sort_by=' in referer):
         back_url = referer
     
+    # 解析 extra_data（类型专属区块，如医保信息/乘车信息）。
+    # 格式: {"v": N, "sections": {...}}。
+    extra_sections = {}
+    if invoice.extra_data:
+        try:
+            _ed = json.loads(invoice.extra_data)
+            if isinstance(_ed, dict) and isinstance(_ed.get('sections'), dict):
+                extra_sections = _ed['sections']
+        except (ValueError, TypeError):
+            extra_sections = {}
+
     return render_template('invoice_detail.html', 
                           invoice=invoice, 
                           items=items,
                           projects=projects,
                           current_project_id=current_project_id,
-                          back_url=back_url)
+                          back_url=back_url,
+                          extra_sections=extra_sections)
 
 
 @main.route('/invoice/<int:invoice_id>/edit', methods=['GET', 'POST'])
@@ -816,26 +880,45 @@ def settings():
         # 保存设置
         tencent_secret_id = request.form.get('tencent_secret_id', '').strip()
         tencent_secret_key = request.form.get('tencent_secret_key', '').strip()
+        vllm_api_key = request.form.get('vllm_api_key', '').strip()
+        vllm_model = request.form.get('vllm_model', '').strip()
+        vllm_endpoint = request.form.get('vllm_endpoint', '').strip()
         
-        # 验证输入
+        # Tencent 是必填项（如果启用）；vllm 可选
         if not tencent_secret_id or not tencent_secret_key:
-            flash('请填写所有必填字段', 'danger')
+            flash('请填写腾讯云必填字段', 'danger')
             return redirect(url_for('main.settings'))
         
         # 保存设置
         Settings.set_value('TENCENT_SECRET_ID', tencent_secret_id)
         Settings.set_value('TENCENT_SECRET_KEY', tencent_secret_key)
+        if vllm_api_key:
+            Settings.set_value('VLLM_OCR_API_KEY', vllm_api_key)
+        if vllm_model:
+            Settings.set_value('VLLM_OCR_MODEL', vllm_model)
+        if vllm_endpoint:
+            Settings.set_value('VLLM_OCR_ENDPOINT', vllm_endpoint)
         
         flash('设置已保存', 'success')
         return redirect(url_for('main.index'))
     
-    # 获取当前设置
-    tencent_secret_id = Settings.get_value('TENCENT_SECRET_ID', '')
-    tencent_secret_key = Settings.get_value('TENCENT_SECRET_KEY', '')
+    # 获取当前设置 — 显示"生效值"（env var 优先，其次是 Settings 表）
+    import os as _os
+    tencent_secret_id = Settings.get_value('TENCENT_SECRET_ID', '') or _os.environ.get('TENCENT_SECRET_ID', '')
+    tencent_secret_key = Settings.get_value('TENCENT_SECRET_KEY', '') or _os.environ.get('TENCENT_SECRET_KEY', '')
+    
+    # vllm 配置 — 显示当前生效值（env var 优先，其次是 Settings 表）
+    import os as _os
+    vllm_api_key = Settings.get_value('VLLM_OCR_API_KEY', '') or _os.environ.get('VLLM_OCR_API_KEY', '')
+    vllm_model = Settings.get_value('VLLM_OCR_MODEL', '') or _os.environ.get('VLLM_OCR_MODEL', 'deepseek-ai/DeepSeek-OCR')
+    vllm_endpoint = Settings.get_value('VLLM_OCR_ENDPOINT', '') or _os.environ.get('VLLM_OCR_ENDPOINT', 'https://api.siliconflow.cn/v1')
     
     return render_template('settings.html', 
                            tencent_secret_id=tencent_secret_id,
-                           tencent_secret_key=tencent_secret_key)
+                           tencent_secret_key=tencent_secret_key,
+                           vllm_api_key=vllm_api_key,
+                           vllm_model=vllm_model,
+                           vllm_endpoint=vllm_endpoint)
 
 @main.route('/quick_upload', methods=['POST'])
 @login_required

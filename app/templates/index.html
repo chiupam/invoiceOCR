@@ -39,6 +39,30 @@
                     </div>
                 </div>
             </form>
+
+            <!-- 文档类型过滤 -->
+            <form method="GET" action="{{ url_for('main.index') }}" class="d-none d-sm-inline-block form-inline me-3">
+                <div class="input-group">
+                    <select name="doc_type" class="form-select form-select-sm bg-light border small" onchange="this.form.submit()">
+                        <option value="">全部类型</option>
+                        {% for dt in doc_types %}
+                        <option value="{{ dt.type_id }}" {% if doc_type_filter == dt.type_id %}selected{% endif %}>{{ dt.display_name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if current_project_id is not none %}
+                    <input type="hidden" name="project_id" value="{{ current_project_id }}">
+                    {% endif %}
+                    {% if search_query %}
+                    <input type="hidden" name="search" value="{{ search_query }}">
+                    {% endif %}
+                    {% if sort_by %}
+                    <input type="hidden" name="sort_by" value="{{ sort_by }}">
+                    {% endif %}
+                    {% if order %}
+                    <input type="hidden" name="order" value="{{ order }}">
+                    {% endif %}
+                </div>
+            </form>
             
             {% if current_project_id and current_project_id != 0 %}
             <a href="{{ url_for('main.project_export', project_id=current_project_id) }}" class="btn btn-primary me-2">
@@ -207,6 +231,11 @@
                                     </td>
                                     <td>
                                         {{ invoice.invoice_type or '未知' }}
+                                        {% if invoice.doc_type == 'medical' %}
+                                            <div class="mt-1"><span class="badge bg-info">医疗票据</span></div>
+                                        {% elif invoice.doc_type == 'train' %}
+                                            <div class="mt-1"><span class="badge bg-warning text-dark">铁路电子客票</span></div>
+                                        {% endif %}
                                         {% if invoice.project %}
                                             <div class="mt-1">
                                                 <span class="badge bg-primary">{{ invoice.project.name }}</span>
