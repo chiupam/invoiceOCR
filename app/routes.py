@@ -16,6 +16,12 @@ from .utils import save_uploaded_file, process_invoice_image, get_invoice_statis
 from core.doc_types import get as _get_doc_type, all_types as _all_doc_types
 from core.extractors import all_backends as _all_backends
 
+# Rate limiter shared with app/__init__.py. Imported here so the /health
+# endpoint can be exempted from the global limits — kubelet probes hit
+# /health every few seconds from the same source IP and would otherwise
+# exhaust the per-hour bucket, causing 429s that fail the liveness probe.
+from app import limiter
+
 # 创建蓝图
 main = Blueprint('main', __name__)
 
@@ -43,12 +49,18 @@ def check_system_setup():
     return False
 
 @main.route('/health')
+@limiter.exempt
 def health():
     """Liveness/readiness probe endpoint.
 
-    Unauthenticated and lightweight — returns 200 OK once the Flask
-    process is serving requests. Suitable for Kubernetes livenessProbe,
-    readinessProbe, and external uptime checks.
+    Unauthenticated, lightweight, and exempt from Flask-Limiter's global
+    default limits. Probes (kubelet liveness/readiness, external uptime
+    monitors) hit this endpoint on a fixed cadence from a single source
+    IP, which would otherwise exhaust the per-hour bucket and cause the
+    liveness probe to fail with 429 — restarting the pod in a loop.
+
+    Returns ``{"status": "ok"}`` 200 once the Flask process is serving
+    requests.
     """
     return {'status': 'ok'}
 
