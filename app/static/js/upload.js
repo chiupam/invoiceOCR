@@ -188,6 +188,27 @@ document.addEventListener('DOMContentLoaded', function() {
         let failCount = 0;
         let completed = 0;
         let lastInvoiceId = null;
+
+        // 轮询异步 OCR 任务状态
+        const pollTask = (taskId, onFinish, attempts = 0) => {
+            fetch(`/api/tasks/${taskId}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(result => {
+                if (result.status === 'done' || result.status === 'failed') {
+                    onFinish(result);
+                } else if (attempts > 120) {
+                    // 约 3 分钟超时
+                    onFinish({ status: 'failed', error: '识别超时，请稍后在列表中确认结果' });
+                } else {
+                    setTimeout(() => pollTask(taskId, onFinish, attempts + 1), 1500);
+                }
+            })
+            .catch(() => {
+                setTimeout(() => pollTask(taskId, onFinish, attempts + 1), 2000);
+            });
+        };
         
         // 顺序处理每个文件
         const processNext = (index) => {
@@ -245,8 +266,24 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(data => {
                 console.log('收到响应数据:', data);
+
+                // 异步模式：202 + task_id，轮询任务状态直到完成
+                if (data.pending && data.task_id) {
+                    pollTask(data.task_id, (result) => {
+                        completed++;
+                        if (result.status === 'done') {
+                            successCount++;
+                            lastInvoiceId = result.invoice_id;
+                        } else {
+                            failCount++;
+                            console.error('识别失败:', result.error);
+                        }
+                        processNext(index + 1);
+                    });
+                    return;
+                }
+
                 completed++;
-                
                 if (data.success) {
                     successCount++;
                     lastInvoiceId = data.invoice_id;
@@ -254,8 +291,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     failCount++;
                     console.error('上传失败:', data.message);
                 }
-                
-                // 处理下一个文件
                 processNext(index + 1);
             })
             .catch(error => {

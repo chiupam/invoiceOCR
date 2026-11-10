@@ -1,68 +1,59 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""Application configuration.
 
-import os
-from dotenv import load_dotenv
+Environment-only settings for infrastructure concerns (DB, paths, secrets).
+Business/OCR credentials live in the ``settings`` DB table (see models.py)
+and are managed through the settings page; env vars only serve as the
+one-time bootstrap.
+"""
+from __future__ import annotations
 
-load_dotenv()
+import secrets
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-class Config:
-    """基础配置类"""
-    BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard-to-guess-string'
-
-    # 数据库配置
-    # 默认 SQLite 在 BASEDIR/data/invoices.db；部署时可通过 DATABASE_URL
-    # 指向持久存储（如 K8s PVC 上的 /data/invoice-ocr.db）。
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(BASE_DIR, 'data', 'invoices.db')
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-    # 上传目录：默认 BASEDIR/app/static/uploads；可被 UPLOAD_FOLDER 覆盖
-    # 指向持久存储（PVC / 主机目录）。
-    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or os.path.join(
-        BASE_DIR, 'app', 'static', 'uploads'
+class AppConfig(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 最大16MB
 
-    # OCR API 配置
-    TENCENT_SECRET_ID = os.environ.get('TENCENT_SECRET_ID', '')
-    TENCENT_SECRET_KEY = os.environ.get('TENCENT_SECRET_KEY', '')
+    # Infrastructure
+    secret_key: str = ""
+    database_url: str = f"sqlite:///{BASE_DIR / 'data' / 'invoices.db'}"
+    upload_folder: str = str(BASE_DIR / "app" / "static" / "uploads")
+    output_dir: str = str(BASE_DIR / "data" / "output")
 
-    # 输出目录：默认 BASEDIR/data/output；可被 OUTPUT_DIR 覆盖。
-    OUTPUT_DIR = os.environ.get('OUTPUT_DIR') or os.path.join(BASE_DIR, 'data', 'output')
+    # Upload limits
+    max_upload_mb: int = 16
+    allowed_extensions: frozenset = frozenset({"png", "jpg", "jpeg", "gif", "pdf"})
 
-    @staticmethod
-    def init_app(app):
-        """初始化应用"""
-        # 确保上传和输出目录存在
-        os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
-        os.makedirs(Config.OUTPUT_DIR, exist_ok=True)
+    # Cookies: set SECURE_COOKIES=true when serving over HTTPS
+    secure_cookies: bool = False
 
+    # OCR bootstrap (imported into the settings table on first run)
+    tencent_secret_id: str = ""
+    tencent_secret_key: str = ""
 
-class DevelopmentConfig(Config):
-    """开发环境配置"""
-    DEBUG = True
+    model_config_json_schema_extra: dict = {}
 
 
-class TestingConfig(Config):
-    """测试环境配置"""
-    TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(Config.BASE_DIR, 'data', 'test-invoices.db')
+@lru_cache
+def get_config() -> AppConfig:
+    cfg = AppConfig()
+    if not cfg.secret_key:
+        # Dev convenience: random per-process key. Sessions/CSRF tokens are
+        # invalidated on restart — set SECRET_KEY in .env for stable sessions.
+        import logging
 
-
-class ProductionConfig(Config):
-    """生产环境配置"""
-    DEBUG = False
-
-
-# 配置映射
-config = {
-    'development': DevelopmentConfig,
-    'testing': TestingConfig,
-    'production': ProductionConfig,
-    'default': DevelopmentConfig
-}
+        logging.getLogger("invoiceocr").warning(
+            "SECRET_KEY 未配置，已生成随机密钥（重启后所有会话失效）。"
+            "请在 .env 中设置 SECRET_KEY。"
+        )
+        cfg.secret_key = secrets.token_hex(32)
+    Path(cfg.upload_folder).mkdir(parents=True, exist_ok=True)
+    Path(cfg.output_dir).mkdir(parents=True, exist_ok=True)
+    return cfg

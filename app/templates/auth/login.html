@@ -16,38 +16,30 @@
         剩余锁定时间：<strong id="countdown" style="font-size: 20px; font-family: monospace;">--:--</strong>
     </div>
     <p class="text-muted" style="font-size: 13px;">锁定结束后页面将自动刷新，届时可重新输入密码</p>
-    <form method="POST" action="{{ url_for('auth.login') }}" style="display:none;">
-        {{ form.hidden_tag() }}
-        {{ form.password }}
-        {{ form.remember }}
-        {{ form.submit }}
-    </form>
 </div>
 {% else %}
 <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
-    {{ form.hidden_tag() }}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
     <div class="mb-3">
         <label for="password" class="form-label fw-bold" style="font-size: 14px;">访问密码</label>
         <div class="input-group">
-            {{ form.password(class="form-control", placeholder="请输入密码", autocomplete="current-password", id="password", style="border-radius: 10px 0 0 10px; padding: 12px 14px; height: 52px;") }}
+            <input type="password" name="password" class="form-control" placeholder="请输入密码" autocomplete="current-password" id="password" style="border-radius: 10px 0 0 10px; padding: 12px 14px; height: 52px;" required>
             <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('password', this)" style="border-radius: 0 10px 10px 0;">
                 <i class="fas fa-eye"></i>
             </button>
         </div>
-        {% if form.password.errors %}
-            {% for error in form.password.errors %}
-            <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
-        {% endif %}
+        {% for error in errors.get('password', []) %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
     </div>
 
     <div class="form-check mb-3">
-        {{ form.remember(class="form-check-input") }}
+        <input type="checkbox" name="remember" value="1" class="form-check-input" id="remember">
         <label class="form-check-label" for="remember">记住我（30天内免登录）</label>
     </div>
 
-    {{ form.submit(class="btn btn-auth") }}
+    <button type="submit" class="btn btn-auth">登录</button>
 </form>
 {% endif %}
 {% endblock %}

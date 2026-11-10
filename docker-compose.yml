@@ -3,7 +3,8 @@ version: '3'
 services:
   invoice_ocr:
     build: .
-    container_name: invoice_ocr
+    image: invoice-ocr:fastapi
+    container_name: invoice_ocr_fastapi
     restart: always
     ports:
       - "5001:5001"
@@ -11,12 +12,12 @@ services:
       - ./data:/app/data
       - ./app/static/uploads:/app/app/static/uploads
     environment:
-      - FLASK_APP=run.py
-      - FLASK_ENV=production
-      # 注意：API密钥现在通过Web界面设置页面配置，不再需要环境变量
+      # API密钥通过 Web 界面设置页配置；SECRET_KEY 建议在生产中显式设置
+      - SECRET_KEY=${SECRET_KEY:-}
+      - SECURE_COOKIES=${SECURE_COOKIES:-false}
     networks:
       - invoice_ocr_network
 
 networks:
   invoice_ocr_network:
-    driver: bridge 
+    driver: bridge

@@ -5,7 +5,7 @@
 
 {% block content %}
 <form method="POST" action="{{ url_for('auth.mfa_setup') }}" novalidate>
-    {{ form.hidden_tag() }}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
     <div class="text-center mb-3">
         <p class="text-muted mb-2" style="font-size: 14px;">1. 使用身份验证器应用（如 Google Authenticator）扫描下方二维码</p>
@@ -20,16 +20,14 @@
     <div class="mb-3">
         <p class="text-muted mb-2" style="font-size: 14px;">3. 输入身份验证器中显示的6位验证码以完成绑定：</p>
         <div class="form-floating">
-            {{ form.code(class="form-control text-center", placeholder="6位验证码", maxlength="6", style="font-size: 24px; letter-spacing: 8px;") }}
-            {{ form.code.label(class="form-label") }}
-            {% if form.code.errors %}
-                {% for error in form.code.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-                {% endfor %}
-            {% endif %}
+            <input type="password" name="code" class="form-control text-center" placeholder="6位验证码" maxlength="6" id="code" style="font-size: 24px; letter-spacing: 8px;" required>
+            <label for="code" class="form-label">验证码</label>
+            {% for error in errors.get('code', []) %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
         </div>
     </div>
 
-    {{ form.submit(class="btn btn-auth") }}
+    <button type="submit" class="btn btn-auth">启用</button>
 </form>
 {% endblock %}

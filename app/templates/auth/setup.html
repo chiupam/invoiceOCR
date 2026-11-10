@@ -16,21 +16,19 @@
 </div>
 
 <form method="POST" action="{{ url_for('auth.setup') }}" novalidate id="setupForm">
-    {{ form.hidden_tag() }}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
     <div class="mb-3">
         <label for="password" class="form-label fw-bold" style="font-size: 14px;">设置密码</label>
         <div class="input-group">
-            {{ form.password(class="form-control", placeholder="请输入密码（至少8位）", autocomplete="new-password", id="password", style="border-radius: 10px 0 0 10px; padding: 12px 14px;") }}
+            <input type="password" name="password" class="form-control" placeholder="请输入密码（至少8位）" autocomplete="new-password" id="password" style="border-radius: 10px 0 0 10px; padding: 12px 14px;" required>
             <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('password', this)" style="border-radius: 0 10px 10px 0;">
                 <i class="fas fa-eye"></i>
             </button>
         </div>
-        {% if form.password.errors %}
-            {% for error in form.password.errors %}
-            <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
-        {% endif %}
+        {% for error in errors.get('password', []) %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
 
         <div id="strengthBar" class="progress mt-2" style="height: 6px; border-radius: 3px;">
             <div id="strengthFill" class="progress-bar" role="progressbar" style="width: 0%; transition: all 0.3s;"></div>
@@ -48,16 +46,14 @@
     <div class="mb-3">
         <label for="password2" class="form-label fw-bold" style="font-size: 14px;">确认密码</label>
         <div class="input-group">
-            {{ form.password2(class="form-control", placeholder="请再次输入密码", autocomplete="new-password", id="password2", style="border-radius: 10px 0 0 10px; padding: 12px 14px;") }}
+            <input type="password" name="password2" class="form-control" placeholder="请再次输入密码" autocomplete="new-password" id="password2" style="border-radius: 10px 0 0 10px; padding: 12px 14px;" required>
             <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('password2', this)" style="border-radius: 0 10px 10px 0;">
                 <i class="fas fa-eye"></i>
             </button>
         </div>
-        {% if form.password2.errors %}
-            {% for error in form.password2.errors %}
-            <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
-        {% endif %}
+        {% for error in errors.get('password2', []) %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
         <div id="matchHint" class="mt-1" style="font-size: 12px;"></div>
     </div>
 
@@ -66,7 +62,7 @@
         您的密码将使用 <strong>bcrypt</strong> 算法加密存储，系统不会保存明文密码。请妥善保管您的密码，忘记密码将需要重置数据库。
     </div>
 
-    {{ form.submit(class="btn btn-auth") }}
+    <button type="submit" class="btn btn-auth">完成设置</button>
 </form>
 {% endblock %}
 

@@ -35,22 +35,20 @@ def sign(key, msg):
 
 
 def get_api_credentials():
-    """获取API凭证，优先从环境变量获取"""
+    """获取API凭证：环境变量优先，其次 Settings 表（框架无关）。"""
     secret_id = os.environ.get('TENCENT_SECRET_ID')
     secret_key = os.environ.get('TENCENT_SECRET_KEY')
 
-    # 如果在Flask应用中，尝试从数据库获取
-    try:
-        from flask import current_app
-        if current_app:
+    if not secret_id or not secret_key:
+        try:
             from app.models import Settings
             if not secret_id:
                 secret_id = Settings.get_value('TENCENT_SECRET_ID')
             if not secret_key:
                 secret_key = Settings.get_value('TENCENT_SECRET_KEY')
-    except (ImportError, RuntimeError):
-        # 不在Flask应用上下文中，继续使用环境变量
-        pass
+        except Exception:
+            # DB 不可用（如独立脚本场景），继续使用环境变量
+            pass
 
     return secret_id, secret_key
 
