@@ -4,6 +4,9 @@ workers = 2
 worker_class = "uvicorn.workers.UvicornWorker"
 bind = "0.0.0.0:5001"
 
+# 应用在 master 进程加载一次（含建表），worker fork 后不再重复初始化
+preload_app = True
+
 # OCR 同步路径（非 XHR 回退）最长可能 60s，留足余量
 timeout = 120
 graceful_timeout = 30

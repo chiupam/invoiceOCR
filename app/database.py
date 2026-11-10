@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from .config import get_config
@@ -33,7 +34,20 @@ def get_db() -> Iterator[Session]:
 
 
 def init_db() -> None:
-    """Create any missing tables (dev convenience; Alembic tracks changes)."""
+    """Create any missing tables.
+
+    Race-safe for multi-worker servers: concurrent workers may both run
+    CREATE TABLE on a fresh SQLite file; "already exists" errors are benign
+    (the union of both workers' tables covers the full schema).
+    """
     from . import models  # noqa: F401 — register tables on Base.metadata
 
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except OperationalError as e:
+        if "already exists" not in str(e):
+            raise
+    finally:
+        # Close connections opened during bootstrap so forked workers do
+        # not inherit a pooled SQLite connection.
+        engine.dispose(close=False)
