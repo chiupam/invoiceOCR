@@ -72,6 +72,7 @@ app/static/uploads/*
 # Generated files
 data/output/*
 !data/output/.gitkeep
+data-fastapi-test/
 *.out
 *.csv
 *.xlsx
